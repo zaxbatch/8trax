@@ -1863,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initMetronome();
 });
 
-// Make functions global
+// ================ MAKE ALL FUNCTIONS GLOBAL ================
 window.register = register;
 window.login = login;
 window.logout = logout;
