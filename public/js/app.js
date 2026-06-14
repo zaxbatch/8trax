@@ -39,6 +39,12 @@ let studioState = {
   currentForkVersionId: null
 };
 
+// ================== UPLOAD STATE ==================
+let activeUploads = new Map();
+let currentUploadSession = null;
+let uploadStartTime = null;
+let lastUploadedBytes = 0;
+
 // ================== API SERVICE ==================
 class API {
   getToken() { return localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN); }
@@ -60,34 +66,134 @@ class API {
     return data;
   }
 
+  // Auth
   async register(userData) { return this.request('/api/auth/register', { method: 'POST', body: userData }); }
   async login(credentials) { return this.request('/api/auth/login', { method: 'POST', body: credentials }); }
+  async getMe() { return this.request('/api/auth/me'); }
+  
+  // Beats
   async getBeats(params = {}) { const query = new URLSearchParams(params).toString(); return this.request(`/api/beats${query ? '?' + query : ''}`); }
   async getBeat(id) { return this.request(`/api/beats/${id}`); }
   async uploadBeat(formData) { return this.request('/api/beats', { method: 'POST', body: formData, isFormData: true }); }
   async downloadBeat(id) { const token = this.getToken(); window.open(`${CONFIG.API_URL}/api/beats/${id}/download?token=${token}`, '_blank'); }
+  
+  // Recordings
   async uploadRecording(beatId, formData) { return this.request(`/api/beats/${beatId}/record`, { method: 'POST', body: formData, isFormData: true }); }
-  async forkBeat(beatId, mixData, title, description, tags) { return this.request(`/api/beats/${beatId}/fork`, { method: 'POST', body: { mixData, title, description, tags } }); }
-  async saveMix(beatId, versionId, formData) { return this.request(`/api/beats/${beatId}/save-mix`, { method: 'POST', body: formData, isFormData: true }); }
-  async getUserForks() { return this.request('/api/user/forks'); }
   async vote(recordingId, rating) { return this.request('/api/vote', { method: 'POST', body: { recordingId, rating } }); }
+  
+  // Library
   async addToLibrary(beatId) { return this.request('/api/library/add', { method: 'POST', body: { beatId } }); }
   async removeFromLibrary(beatId) { return this.request('/api/library/remove', { method: 'DELETE', body: { beatId } }); }
   async getLibrary() { return this.request('/api/library'); }
+  
+  // Comments
   async addComment(beatId, comment) { return this.request('/api/comments/add', { method: 'POST', body: { beatId, comment } }); }
   async getComments(beatId) { return this.request(`/api/comments/${beatId}`); }
   async likeComment(commentId) { return this.request('/api/comments/like', { method: 'POST', body: { commentId } }); }
+  
+  // Messages
   async getMessages() { return this.request('/api/messages'); }
   async sendMessage(to, message) { return this.request('/api/messages/send', { method: 'POST', body: { to, message } }); }
+  
+  // Social
   async getFeed() { return this.request('/api/feed'); }
   async getTrending() { return this.request('/api/trending'); }
   async getLeaderboard() { return this.request('/api/leaderboard'); }
-  async search(query, type = 'all') { return this.request(`/api/search?q=${query}&type=${type}`); }
+  async search(query, type = 'all') { return this.request(`/api/search?q=${encodeURIComponent(query)}&type=${type}`); }
   async getUserProfile(username) { return this.request(`/api/users/${username}`); }
   async followUser(userId) { return this.request(`/api/users/${userId}/follow`, { method: 'POST' }); }
+  
+  // Fork
+  async forkBeat(beatId, mixData, title, description, tags) { 
+    return this.request(`/api/beats/${beatId}/fork`, { method: 'POST', body: { mixData, title, description, tags } }); 
+  }
+  async saveMix(beatId, versionId, formData) { 
+    return this.request(`/api/beats/${beatId}/save-mix`, { method: 'POST', body: formData, isFormData: true }); 
+  }
+  async getUserForks() { return this.request('/api/user/forks'); }
+  
+  // Upload with progress
+  async startUploadSession(fileName, fileSize, type) {
+    return this.request('/api/upload/start', { method: 'POST', body: { fileName, fileSize, type } });
+  }
+  async uploadChunk(formData) {
+    return this.request('/api/upload/chunk', { method: 'POST', body: formData, isFormData: true });
+  }
+  async completeUpload(sessionId, metadata) {
+    return this.request('/api/upload/complete', { method: 'POST', body: { sessionId, ...metadata } });
+  }
+  async cancelUpload(sessionId) {
+    return this.request(`/api/upload/${sessionId}`, { method: 'DELETE' });
+  }
+  async getUploadStatus(sessionId) {
+    return this.request(`/api/upload/status/${sessionId}`);
+  }
+  async getUploadHistory() {
+    return this.request('/api/upload/history');
+  }
 }
 
 const api = new API();
+
+// ==================== UTILITIES ====================
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatTime(seconds) {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+function timeAgo(date) {
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `position: fixed; bottom:80px; left:16px; right:16px; background:${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#667eea'}; color:white; padding:12px; border-radius:12px; text-align:center; z-index:1000; animation:fadeIn 0.3s ease;`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.add('active');
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.remove('active');
+}
+
+function showPage(pageName) {
+  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+  const targetPage = document.getElementById(`${pageName}Page`);
+  if (targetPage) targetPage.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(nav => {
+    nav.classList.remove('active');
+    if (nav.dataset.page === pageName) nav.classList.add('active');
+  });
+}
 
 // ==================== AUTHENTICATION ====================
 async function register() {
@@ -166,34 +272,6 @@ function updateUI() {
   }
 }
 
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  toast.style.cssText = `position: fixed; bottom:80px; left:16px; right:16px; background:${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#667eea'}; color:white; padding:12px; border-radius:12px; text-align:center; z-index:1000; animation:fadeIn 0.3s ease;`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-function showPage(pageName) {
-  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-  const targetPage = document.getElementById(`${pageName}Page`);
-  if (targetPage) targetPage.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(nav => {
-    nav.classList.remove('active');
-    if (nav.dataset.page === pageName) nav.classList.add('active');
-  });
-}
-
-function showModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.add('active');
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove('active');
-}
-
 function showLoginModal() { showModal('loginModal'); }
 function showRegisterModal() { showModal('registerModal'); }
 
@@ -205,6 +283,30 @@ function initSocket() {
       displayMessage(message);
     }
     showToast('New message!', 'info');
+  });
+  socket.on('uploadProgress', (data) => {
+    if (data.sessionId === currentUploadSession) {
+      const fileInput = document.getElementById('beatFile');
+      if (fileInput && fileInput.files[0]) {
+        const elapsed = (Date.now() - uploadStartTime) / 1000;
+        const file = fileInput.files[0];
+        const stats = updateUploadStats(data.uploadedBytes, file.size, elapsed);
+        document.getElementById('uploadSpeed').textContent = stats.speedFormatted;
+        document.getElementById('uploadTimeRemaining').textContent = stats.timeRemainingFormatted;
+      }
+    }
+  });
+  socket.on('uploadComplete', (data) => {
+    if (data.sessionId === currentUploadSession) {
+      showToast('Upload completed!', 'success');
+      removeActiveUpload(data.sessionId);
+    }
+  });
+  socket.on('uploadCancelled', (data) => {
+    if (data.sessionId === currentUploadSession) {
+      showToast('Upload cancelled', 'info');
+      removeActiveUpload(data.sessionId);
+    }
   });
 }
 
@@ -530,6 +632,272 @@ function displayMessage(message) {
   }
 }
 
+// ================== UPLOAD WITH PROGRESS ==================
+function updateUploadStats(uploadedBytes, totalBytes, elapsedSeconds) {
+  const speed = uploadedBytes / elapsedSeconds;
+  const remainingBytes = totalBytes - uploadedBytes;
+  const timeRemaining = remainingBytes / speed;
+  
+  return {
+    speed: speed,
+    speedFormatted: formatFileSize(speed) + '/s',
+    timeRemaining: timeRemaining,
+    timeRemainingFormatted: isFinite(timeRemaining) ? formatTime(timeRemaining) : 'Calculating...'
+  };
+}
+
+function updateActiveUpload(sessionId, data) {
+  let uploadsContainer = document.getElementById('uploadsList');
+  let activeUploadsSection = document.getElementById('activeUploads');
+  
+  if (!activeUploadsSection) return;
+  
+  activeUploadsSection.style.display = 'block';
+  
+  let uploadItem = document.getElementById(`upload-${sessionId}`);
+  if (!uploadItem) {
+    uploadItem = document.createElement('div');
+    uploadItem.id = `upload-${sessionId}`;
+    uploadItem.className = 'upload-item';
+    uploadsContainer.appendChild(uploadItem);
+  }
+  
+  uploadItem.innerHTML = `
+    <div class="upload-header">
+      <span class="upload-filename">${escapeHtml(data.fileName)}</span>
+      <span class="upload-status uploading">${data.status}</span>
+    </div>
+    <div class="upload-progress">
+      <div class="progress-bar-container">
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${data.progress}%"></div>
+        </div>
+      </div>
+      <div class="upload-stats">
+        <span>${Math.round(data.progress)}%</span>
+        <span>${data.speed || '0 MB/s'}</span>
+      </div>
+    </div>
+    <div class="upload-actions">
+      <button onclick="cancelUploadSession('${sessionId}')" class="btn-danger">Cancel</button>
+    </div>
+  `;
+}
+
+function removeActiveUpload(sessionId) {
+  const uploadItem = document.getElementById(`upload-${sessionId}`);
+  if (uploadItem) uploadItem.remove();
+  
+  const uploadsContainer = document.getElementById('uploadsList');
+  if (uploadsContainer && uploadsContainer.children.length === 0) {
+    document.getElementById('activeUploads').style.display = 'none';
+  }
+}
+
+async function cancelUploadSession(sessionId) {
+  try {
+    await api.cancelUpload(sessionId);
+    removeActiveUpload(sessionId);
+    if (currentUploadSession === sessionId) {
+      currentUploadSession = null;
+      closeModal('uploadProgressModal');
+    }
+    showToast('Upload cancelled', 'info');
+  } catch (error) {
+    showToast('Error cancelling upload', 'error');
+  }
+}
+
+async function cancelUpload() {
+  if (!currentUploadSession) return;
+  
+  try {
+    await api.cancelUpload(currentUploadSession);
+    showToast('Upload cancelled', 'info');
+    closeModal('uploadProgressModal');
+    removeActiveUpload(currentUploadSession);
+    currentUploadSession = null;
+  } catch (error) {
+    console.error('Cancel error:', error);
+  }
+}
+
+async function uploadBeatWithProgress() {
+  if (!currentUser) {
+    showToast('Please login', 'error');
+    return;
+  }
+  
+  const title = document.getElementById('beatTitle')?.value;
+  const genre = document.getElementById('beatGenre')?.value;
+  const bpm = document.getElementById('beatBpm')?.value;
+  const tags = document.getElementById('beatTags')?.value;
+  const description = document.getElementById('beatDescription')?.value;
+  const file = document.getElementById('beatFile')?.files[0];
+  
+  if (!title || !bpm || !file) {
+    showToast('Fill all required fields', 'error');
+    return;
+  }
+  
+  if (file.size > 100 * 1024 * 1024) {
+    showToast('File too large. Max 100MB', 'error');
+    return;
+  }
+  
+  showModal('uploadProgressModal');
+  document.getElementById('uploadFileName').textContent = file.name;
+  document.getElementById('uploadFileSize').textContent = formatFileSize(file.size);
+  document.getElementById('uploadProgressBar').style.width = '0%';
+  document.getElementById('uploadPercentage').textContent = '0%';
+  document.getElementById('uploadSpeed').textContent = '0 MB/s';
+  document.getElementById('uploadTimeRemaining').textContent = '--';
+  document.getElementById('uploadStatusMessage').textContent = 'Starting upload...';
+  
+  try {
+    const startResponse = await api.startUploadSession(file.name, file.size, 'beat');
+    const sessionId = startResponse.sessionId;
+    currentUploadSession = sessionId;
+    uploadStartTime = Date.now();
+    
+    const chunkSize = 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const chunks = [];
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+      chunks.push(chunk);
+    }
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const formData = new FormData();
+      formData.append('chunk', chunk);
+      formData.append('sessionId', sessionId);
+      formData.append('chunkIndex', i);
+      formData.append('totalChunks', totalChunks);
+      
+      const uploadResponse = await api.uploadChunk(formData);
+      
+      const elapsed = (Date.now() - uploadStartTime) / 1000;
+      const stats = updateUploadStats(uploadResponse.progress / 100 * file.size, file.size, elapsed);
+      
+      document.getElementById('uploadProgressBar').style.width = `${uploadResponse.progress}%`;
+      document.getElementById('uploadPercentage').textContent = `${Math.round(uploadResponse.progress)}%`;
+      document.getElementById('uploadSpeed').textContent = stats.speedFormatted;
+      document.getElementById('uploadTimeRemaining').textContent = stats.timeRemainingFormatted;
+      document.getElementById('uploadStatusMessage').textContent = `Uploading chunk ${i + 1} of ${totalChunks}...`;
+      
+      updateActiveUpload(sessionId, {
+        fileName: file.name,
+        progress: uploadResponse.progress,
+        status: 'uploading',
+        speed: stats.speedFormatted
+      });
+    }
+    
+    document.getElementById('uploadStatusMessage').textContent = 'Finalizing upload...';
+    
+    const completeResponse = await api.completeUpload(sessionId, {
+      title,
+      genre,
+      bpm: parseInt(bpm),
+      description,
+      tags
+    });
+    
+    if (completeResponse.success) {
+      document.getElementById('uploadStatusMessage').textContent = 'Upload complete!';
+      document.getElementById('uploadProgressBar').style.width = '100%';
+      document.getElementById('uploadPercentage').textContent = '100%';
+      
+      setTimeout(() => {
+        closeModal('uploadProgressModal');
+        showToast('Beat uploaded successfully!', 'success');
+        
+        document.getElementById('beatTitle').value = '';
+        document.getElementById('beatBpm').value = '';
+        document.getElementById('beatTags').value = '';
+        document.getElementById('beatDescription').value = '';
+        document.getElementById('beatFile').value = '';
+        document.getElementById('fileInfo').textContent = '';
+        
+        discoverMusic();
+        showPage('discover');
+        
+        removeActiveUpload(sessionId);
+        currentUploadSession = null;
+      }, 1000);
+    }
+  } catch (error) {
+    console.error('Upload error:', error);
+    document.getElementById('uploadStatusMessage').textContent = 'Upload failed: ' + error.message;
+    document.getElementById('uploadStatusMessage').style.color = '#ef4444';
+    
+    setTimeout(() => {
+      closeModal('uploadProgressModal');
+      showToast('Upload failed: ' + error.message, 'error');
+    }, 2000);
+  }
+}
+
+async function loadUploadHistory(type = 'beats') {
+  if (!currentUser) {
+    showToast('Please login', 'error');
+    return;
+  }
+  
+  try {
+    const history = await api.getUploadHistory();
+    const container = document.getElementById('historyList');
+    if (!container) return;
+    
+    let items = type === 'beats' ? history.beats : history.recordings;
+    
+    if (items.length === 0) {
+      container.innerHTML = '<div class="empty-state">No uploads found</div>';
+      return;
+    }
+    
+    container.innerHTML = items.map(item => `
+      <div class="history-item" onclick="${type === 'beats' ? `viewBeat('${item.id}')` : `viewBeat('${item.beatId || item.id}')`}">
+        <div class="history-item-header">
+          <span class="history-title">${escapeHtml(item.title)}</span>
+          <span class="history-type ${item.type} ${item.isFork ? 'fork' : ''}">
+            ${item.isFork ? '🍴 Fork' : (item.type === 'beat' ? '🎵 Beat' : '🎙️ Recording')}
+          </span>
+        </div>
+        ${item.beatTitle ? `<div style="font-size: 12px; color: #6b7280;">on ${escapeHtml(item.beatTitle)}</div>` : ''}
+        <div class="history-stats">
+          ${item.plays !== undefined ? `<span>🎧 ${item.plays} plays</span>` : ''}
+          ${item.downloads !== undefined ? `<span>⬇️ ${item.downloads} downloads</span>` : ''}
+          ${item.rating !== undefined ? `<span>⭐ ${item.rating.toFixed(1)}/5</span>` : ''}
+        </div>
+        <div class="history-date">${new Date(item.createdAt).toLocaleDateString()}</div>
+      </div>
+    `).join('');
+    
+    document.querySelectorAll('.history-tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    if (event && event.target) event.target.classList.add('active');
+    
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function showUploadHistory() {
+  if (!currentUser) {
+    showToast('Please login', 'error');
+    return;
+  }
+  loadUploadHistory('beats');
+  showModal('uploadHistoryModal');
+}
+
 // ====================== STUDIO FUNCTIONS ======================
 function initStudioTracks() {
   studioState.tracks = [];
@@ -762,7 +1130,7 @@ function updateMetronomeBPM() {
   }
 }
 
-// ================== RECORDING WITH SYNC ==================
+// ================== RECORDING ==================
 async function startCountIn(callback) {
   if (!studioState.countInEnabled) {
     callback();
@@ -853,7 +1221,6 @@ async function startRecordingToTrack(trackNum) {
       
       studioState.mediaRecorder.start();
       studioState.isRecording = true;
-      studioState.recordingStartTime = Date.now();
       if (studioState.metronomeEnabled) startMetronome();
       playAllTracks();
       
@@ -975,7 +1342,51 @@ function clearTrack(trackId) {
   renderStudioInterface();
 }
 
-// ================== DOWNLOAD MIX FUNCTION ==================
+// ================== DOWNLOAD MIX ==================
+function bufferToWav(audioBuffer) {
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const format = 1;
+  const bitDepth = 16;
+  
+  let samples = audioBuffer.getChannelData(0);
+  let dataLength = samples.length * numChannels * (bitDepth / 8);
+  let buffer = new ArrayBuffer(44 + dataLength);
+  let view = new DataView(buffer);
+  
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+  view.setUint16(32, numChannels * (bitDepth / 8), true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+  
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    for (let channel = 0; channel < numChannels; channel++) {
+      let sample = (channel === 0) ? samples[i] : audioBuffer.getChannelData(channel)[i];
+      let intSample = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
+      view.setInt16(offset, intSample, true);
+      offset += 2;
+    }
+  }
+  
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
 async function downloadMix() {
   if (!studioState.isOpen) {
     showToast('Open a beat first', 'error');
@@ -993,7 +1404,6 @@ async function downloadMix() {
   const statusText = document.getElementById('downloadStatus');
   
   try {
-    // Calculate total duration (max track length)
     let maxDuration = 0;
     for (const track of studioState.tracks) {
       if (track.isLoaded && track.audioBuffer) {
@@ -1001,18 +1411,14 @@ async function downloadMix() {
       }
     }
     
-    if (maxDuration === 0) {
-      throw new Error('No audio data found');
-    }
+    if (maxDuration === 0) throw new Error('No audio data found');
     
     statusText.textContent = 'Rendering mix...';
     if (progressBar) progressBar.style.width = '20%';
     
-    // Create offline context for rendering
     const sampleRate = 44100;
     const offlineContext = new OfflineAudioContext(2, Math.ceil(maxDuration * sampleRate), sampleRate);
     
-    // Add all tracks to the offline context
     let trackCount = 0;
     const hasSolo = studioState.tracks.some(t => t.solo);
     
@@ -1024,33 +1430,27 @@ async function downloadMix() {
       
       const bufferSource = offlineContext.createBufferSource();
       bufferSource.buffer = track.audioBuffer;
-      
       const gainNode = offlineContext.createGain();
       gainNode.gain.value = track.volume;
       
       bufferSource.connect(gainNode);
       gainNode.connect(offlineContext.destination);
-      
       bufferSource.start(0);
       trackCount++;
       
       if (progressBar) progressBar.style.width = `${30 + (i / studioState.tracks.length) * 40}%`;
     }
     
-    if (trackCount === 0) {
-      throw new Error('No active tracks to render');
-    }
+    if (trackCount === 0) throw new Error('No active tracks to render');
     
     statusText.textContent = 'Processing audio...';
     if (progressBar) progressBar.style.width = '70%';
     
-    // Render the mix
     const renderedBuffer = await offlineContext.startRendering();
     
     statusText.textContent = 'Encoding...';
     if (progressBar) progressBar.style.width = '90%';
     
-    // Convert to WAV and download
     const wavBlob = bufferToWav(renderedBuffer);
     const url = URL.createObjectURL(wavBlob);
     const a = document.createElement('a');
@@ -1074,54 +1474,7 @@ async function downloadMix() {
   }
 }
 
-// Helper function to convert AudioBuffer to WAV
-function bufferToWav(audioBuffer) {
-  const numChannels = audioBuffer.numberOfChannels;
-  const sampleRate = audioBuffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
-  
-  let samples = audioBuffer.getChannelData(0);
-  let dataLength = samples.length * numChannels * (bitDepth / 8);
-  let buffer = new ArrayBuffer(44 + dataLength);
-  let view = new DataView(buffer);
-  
-  // Write WAV header
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataLength, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, format, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-  view.setUint16(32, numChannels * (bitDepth / 8), true);
-  view.setUint16(34, bitDepth, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, dataLength, true);
-  
-  // Write audio data
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    for (let channel = 0; channel < numChannels; channel++) {
-      let sample = (channel === 0) ? samples[i] : audioBuffer.getChannelData(channel)[i];
-      let intSample = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
-      view.setInt16(offset, intSample, true);
-      offset += 2;
-    }
-  }
-  
-  return new Blob([buffer], { type: 'audio/wav' });
-}
-
-function writeString(view, offset, string) {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
-  }
-}
-
-// ================== FORK MIX FUNCTION ==================
+// ================== FORK MIX ==================
 function showForkModal() {
   if (!studioState.isOpen) {
     showToast('Open a beat first to fork', 'error');
@@ -1151,7 +1504,6 @@ async function confirmFork() {
     statusText.textContent = 'Rendering fork mix...';
     if (progressBar) progressBar.style.width = '20%';
     
-    // Render the complete mix
     let maxDuration = 0;
     for (const track of studioState.tracks) {
       if (track.isLoaded && track.audioBuffer) {
@@ -1162,7 +1514,6 @@ async function confirmFork() {
     const sampleRate = 44100;
     const offlineContext = new OfflineAudioContext(2, Math.ceil(maxDuration * sampleRate), sampleRate);
     const mixData = { tracks: [] };
-    
     const hasSolo = studioState.tracks.some(t => t.solo);
     
     for (let i = 0; i < studioState.tracks.length; i++) {
@@ -1196,12 +1547,10 @@ async function confirmFork() {
     statusText.textContent = 'Saving fork...';
     if (progressBar) progressBar.style.width = '80%';
     
-    // Convert to WAV
     const wavBlob = bufferToWav(renderedBuffer);
     const formData = new FormData();
     formData.append('mix', wavBlob, 'fork_mix.wav');
     
-    // Create fork in backend
     const forkResult = await api.forkBeat(
       studioState.currentBeatId,
       { ...mixData, mixBuffer: renderedBuffer },
@@ -1210,9 +1559,8 @@ async function confirmFork() {
       tags
     );
     
-    // Save the mixed audio file
     formData.append('versionId', forkResult.id);
-    const saveResult = await api.saveMix(studioState.currentBeatId, forkResult.id, formData);
+    await api.saveMix(studioState.currentBeatId, forkResult.id, formData);
     
     if (progressBar) progressBar.style.width = '100%';
     
@@ -1249,7 +1597,7 @@ function closeStudio() {
   initStudioTracks();
 }
 
-// ======== BEAT DETAILS, COMMENTS, PROFILE, UPLOAD, SEARCH, UTILITIES ========
+// ======== BEAT DETAILS, COMMENTS, PROFILE ========
 async function viewBeat(beatId) {
   try {
     const beat = await api.getBeat(beatId);
@@ -1416,88 +1764,6 @@ async function followUser(userId) {
   }
 }
 
-async function uploadBeat() {
-  if (!currentUser) {
-    showToast('Please login', 'error');
-    return;
-  }
-  
-  const title = document.getElementById('beatTitle')?.value;
-  const genre = document.getElementById('beatGenre')?.value;
-  const bpm = document.getElementById('beatBpm')?.value;
-  const tags = document.getElementById('beatTags')?.value;
-  const description = document.getElementById('beatDescription')?.value;
-  const file = document.getElementById('beatFile')?.files[0];
-  
-  if (!title || !bpm || !file) {
-    showToast('Fill all required fields', 'error');
-    return;
-  }
-  
-  const formData = new FormData();
-  formData.append('beat', file);
-  formData.append('title', title);
-  formData.append('genre', genre);
-  formData.append('bpm', bpm);
-  formData.append('tags', tags);
-  formData.append('description', description);
-  
-  try {
-    await api.uploadBeat(formData);
-    showToast('Beat uploaded!', 'success');
-    document.getElementById('beatTitle').value = '';
-    document.getElementById('beatBpm').value = '';
-    document.getElementById('beatTags').value = '';
-    document.getElementById('beatDescription').value = '';
-    document.getElementById('beatFile').value = '';
-    discoverMusic();
-    showPage('discover');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-}
-
-async function performSearch() {
-  const query = document.getElementById('searchInput')?.value;
-  if (!query || query.length < 2) return;
-  
-  try {
-    const results = await api.search(query);
-    const container = document.getElementById('searchResultsList');
-    if (!container) return;
-    
-    container.innerHTML = results.map(r => r.type === 'user' 
-      ? `<div class="search-result-item" onclick="viewProfile('${r.username}'); closeModal('searchModal')">
-           <div class="search-result-avatar">${(r.displayName?.[0] || r.username?.[0]).toUpperCase()}</div>
-           <div><strong>${escapeHtml(r.displayName || r.username)}</strong><div style="font-size:12px;">@${escapeHtml(r.username)}</div></div>
-         </div>`
-      : `<div class="search-result-item" onclick="viewBeat('${r.id}'); closeModal('searchModal')">
-           <div>🎵</div>
-           <div><strong>${escapeHtml(r.title)}</strong><div style="font-size:12px;">by ${escapeHtml(r.producerName)}</div></div>
-         </div>`
-    ).join('');
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function timeAgo(date) {
-  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // ================ INITIALIZATION ================
 document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
@@ -1519,6 +1785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadLeaderboard();
   await loadBeatsForStudio();
   
+  // Navigation
   document.querySelectorAll('.nav-item').forEach(nav => {
     nav.addEventListener('click', () => {
       const page = nav.dataset.page;
@@ -1533,6 +1800,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
+  // Library tabs
   document.querySelectorAll('.lib-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
@@ -1541,12 +1809,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
+  // Search
   document.getElementById('searchBtn')?.addEventListener('click', () => showModal('searchModal'));
-  document.getElementById('searchInput')?.addEventListener('input', performSearch);
+  document.getElementById('searchInput')?.addEventListener('input', async () => {
+    const query = document.getElementById('searchInput')?.value;
+    if (!query || query.length < 2) return;
+    try {
+      const results = await api.search(query);
+      const container = document.getElementById('searchResultsList');
+      if (!container) return;
+      container.innerHTML = results.map(r => r.type === 'user' 
+        ? `<div class="search-result-item" onclick="viewProfile('${r.username}'); closeModal('searchModal')">
+             <div class="search-result-avatar">${(r.displayName?.[0] || r.username?.[0]).toUpperCase()}</div>
+             <div><strong>${escapeHtml(r.displayName || r.username)}</strong><div style="font-size:12px;">@${escapeHtml(r.username)}</div></div>
+           </div>`
+        : `<div class="search-result-item" onclick="viewBeat('${r.id}'); closeModal('searchModal')">
+             <div>🎵</div>
+             <div><strong>${escapeHtml(r.title)}</strong><div style="font-size:12px;">by ${escapeHtml(r.producerName)}</div></div>
+           </div>`
+      ).join('');
+    } catch (error) {
+      console.error(error);
+    }
+  });
+  
+  // Messages
   document.getElementById('messagesBtn')?.addEventListener('click', () => {
     if (currentUser) loadMessages();
     else showToast('Login to view messages', 'error');
   });
+  
+  // Upload history
+  document.getElementById('uploadHistoryBtn')?.addEventListener('click', showUploadHistory);
+  
+  // File input listener
+  const beatFileInput = document.getElementById('beatFile');
+  if (beatFileInput) {
+    beatFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const fileInfo = document.getElementById('fileInfo');
+      if (file && fileInfo) {
+        fileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        if (file.size > 100 * 1024 * 1024) {
+          fileInfo.style.color = '#ef4444';
+          fileInfo.textContent += ' - Exceeds 100MB limit!';
+        } else {
+          fileInfo.style.color = '#10b981';
+        }
+      }
+    });
+  }
   
   initMetronome();
 });
@@ -1585,7 +1897,6 @@ window.applyFX = applyFX;
 window.showComments = showComments;
 window.addComment = addComment;
 window.likeComment = likeComment;
-window.uploadBeat = uploadBeat;
 window.loadBeatsForStudio = loadBeatsForStudio;
 window.uploadTrackFile = uploadTrackFile;
 window.prepareRecording = prepareRecording;
@@ -1599,3 +1910,9 @@ window.closeChat = closeChat;
 window.downloadMix = downloadMix;
 window.showForkModal = showForkModal;
 window.confirmFork = confirmFork;
+window.uploadBeatWithProgress = uploadBeatWithProgress;
+window.cancelUpload = cancelUpload;
+window.cancelUploadSession = cancelUploadSession;
+window.showUploadHistory = showUploadHistory;
+window.loadUploadHistory = loadUploadHistory;
+window.formatFileSize = formatFileSize;

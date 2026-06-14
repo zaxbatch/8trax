@@ -72,6 +72,8 @@ const storage = multer.diskStorage({
       cb(null, path.join(__dirname, 'uploads/vocals'));
     } else if (file.fieldname === 'mix') {
       cb(null, path.join(__dirname, 'uploads/mixes'));
+    } else if (file.fieldname === 'chunk') {
+      cb(null, path.join(__dirname, 'uploads/temp'));
     } else {
       cb(null, path.join(__dirname, 'uploads/vocals'));
     }
@@ -82,6 +84,12 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
+
+// Ensure temp directory for chunks
+const tempDir = path.join(__dirname, 'uploads/temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
 
 // Auth middleware
 const authenticate = (req, res, next) => {
@@ -117,6 +125,320 @@ io.on('connection', (socket) => {
   });
   
   socket.on('disconnect', () => console.log('User disconnected:', socket.id));
+});
+
+// ================== UPLOAD STATUS ROUTES ==================
+const uploadSessions = new Map();
+
+// Start upload session
+app.post('/api/upload/start', authenticate, (req, res) => {
+  const sessionId = uuidv4();
+  const { fileName, fileSize, type } = req.body;
+  
+  uploadSessions.set(sessionId, {
+    userId: req.user.id,
+    fileName,
+    fileSize,
+    type,
+    status: 'starting',
+    progress: 0,
+    uploadedBytes: 0,
+    startTime: new Date().toISOString(),
+    chunks: []
+  });
+  
+  res.json({ sessionId, message: 'Upload session started' });
+});
+
+// Upload chunk
+app.post('/api/upload/chunk', authenticate, upload.single('chunk'), (req, res) => {
+  try {
+    const { sessionId, chunkIndex, totalChunks } = req.body;
+    const session = uploadSessions.get(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+    
+    if (session.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const chunkSize = req.file.size;
+    session.uploadedBytes += chunkSize;
+    session.progress = (session.uploadedBytes / session.fileSize) * 100;
+    session.status = 'uploading';
+    
+    if (!session.chunks) session.chunks = [];
+    session.chunks[chunkIndex] = {
+      path: req.file.path,
+      size: chunkSize,
+      index: parseInt(chunkIndex)
+    };
+    
+    // Emit progress via socket
+    io.emit('uploadProgress', {
+      sessionId,
+      progress: session.progress,
+      uploadedBytes: session.uploadedBytes,
+      totalBytes: session.fileSize
+    });
+    
+    res.json({
+      success: true,
+      progress: session.progress,
+      chunkIndex: parseInt(chunkIndex),
+      totalChunks: parseInt(totalChunks)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Complete upload and assemble file
+app.post('/api/upload/complete', authenticate, async (req, res) => {
+  try {
+    const { sessionId, title, genre, bpm, description, tags, beatId, versionId } = req.body;
+    const session = uploadSessions.get(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+    
+    if (session.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    session.status = 'assembling';
+    
+    // Sort chunks by index
+    const sortedChunks = session.chunks.sort((a, b) => a.index - b.index);
+    const buffers = [];
+    
+    for (const chunk of sortedChunks) {
+      if (chunk && chunk.path && fs.existsSync(chunk.path)) {
+        const chunkBuffer = fs.readFileSync(chunk.path);
+        buffers.push(chunkBuffer);
+      }
+    }
+    
+    const completeBuffer = Buffer.concat(buffers);
+    const fileExtension = path.extname(session.fileName);
+    const filename = `${uuidv4()}${fileExtension}`;
+    let fileUrl = '';
+    let result = null;
+    
+    // Determine upload type and save file
+    if (session.type === 'beat') {
+      const uploadPath = path.join(__dirname, 'uploads/beats', filename);
+      fs.writeFileSync(uploadPath, completeBuffer);
+      fileUrl = `/uploads/beats/${filename}`;
+      
+      // Create beat
+      const users = readData('users.json');
+      const user = users.find(u => u.id === req.user.id);
+      const beats = readData('beats.json');
+      
+      const newBeat = {
+        id: uuidv4(),
+        title,
+        genre: genre || 'Other',
+        bpm: parseInt(bpm) || 120,
+        description: description || "",
+        tags: tags ? tags.split(',').map(t => t.trim()) : [],
+        producerId: req.user.id,
+        producerName: user.displayName || user.username,
+        producerUsername: user.username,
+        fileUrl,
+        filename,
+        createdAt: new Date().toISOString(),
+        plays: 0,
+        downloads: 0,
+        rating: 0,
+        versions: []
+      };
+      
+      beats.push(newBeat);
+      writeData('beats.json', beats);
+      
+      if (!user.uploadedBeats) user.uploadedBeats = [];
+      user.uploadedBeats.push(newBeat.id);
+      writeData('users.json', users);
+      
+      result = newBeat;
+      
+    } else if (session.type === 'vocal') {
+      const uploadPath = path.join(__dirname, 'uploads/vocals', filename);
+      fs.writeFileSync(uploadPath, completeBuffer);
+      fileUrl = `/uploads/vocals/${filename}`;
+      
+      // Create recording
+      const beats = readData('beats.json');
+      const users = readData('users.json');
+      const beatIndex = beats.findIndex(b => b.id === beatId);
+      
+      if (beatIndex !== -1) {
+        const user = users.find(u => u.id === req.user.id);
+        const beat = beats[beatIndex];
+        
+        const newVersion = {
+          id: uuidv4(),
+          beatId: beatId,
+          beatTitle: beat.title,
+          vocalistId: req.user.id,
+          vocalistName: user.displayName || user.username,
+          vocalistUsername: user.username,
+          title: title || `${user.displayName}'s version`,
+          description: description || "",
+          tags: tags ? tags.split(',').map(t => t.trim()) : [],
+          fileUrl,
+          filename,
+          createdAt: new Date().toISOString(),
+          votes: [],
+          rating: 0,
+          plays: 0,
+          isFork: false
+        };
+        
+        beat.versions.push(newVersion);
+        writeData('beats.json', beats);
+        
+        if (!user.recordings) user.recordings = [];
+        user.recordings.push(newVersion.id);
+        writeData('users.json', users);
+        
+        result = newVersion;
+      }
+    } else if (session.type === 'mix') {
+      const uploadPath = path.join(__dirname, 'uploads/mixes', filename);
+      fs.writeFileSync(uploadPath, completeBuffer);
+      fileUrl = `/uploads/mixes/${filename}`;
+      
+      // Save mix for fork
+      const beats = readData('beats.json');
+      
+      for (const beat of beats) {
+        const versionIndex = beat.versions.findIndex(v => v.id === versionId);
+        if (versionIndex !== -1) {
+          beat.versions[versionIndex].fileUrl = fileUrl;
+          beat.versions[versionIndex].mixFile = filename;
+          writeData('beats.json', beats);
+          result = { success: true, fileUrl };
+          break;
+        }
+      }
+    }
+    
+    // Clean up chunk files
+    for (const chunk of session.chunks) {
+      if (chunk && chunk.path && fs.existsSync(chunk.path)) {
+        fs.unlinkSync(chunk.path);
+      }
+    }
+    
+    uploadSessions.delete(sessionId);
+    
+    io.emit('uploadComplete', {
+      sessionId,
+      result,
+      type: session.type
+    });
+    
+    res.json({ success: true, result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get upload status
+app.get('/api/upload/status/:sessionId', authenticate, (req, res) => {
+  const session = uploadSessions.get(req.params.sessionId);
+  
+  if (!session) {
+    return res.status(404).json({ error: 'Upload session not found' });
+  }
+  
+  if (session.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  res.json({
+    sessionId: req.params.sessionId,
+    status: session.status,
+    progress: session.progress,
+    uploadedBytes: session.uploadedBytes,
+    totalBytes: session.fileSize,
+    fileName: session.fileName,
+    startTime: session.startTime
+  });
+});
+
+// Cancel upload
+app.delete('/api/upload/:sessionId', authenticate, (req, res) => {
+  const session = uploadSessions.get(req.params.sessionId);
+  
+  if (session && session.userId === req.user.id) {
+    // Clean up chunk files
+    if (session.chunks) {
+      for (const chunk of session.chunks) {
+        if (chunk && chunk.path && fs.existsSync(chunk.path)) {
+          fs.unlinkSync(chunk.path);
+        }
+      }
+    }
+    uploadSessions.delete(req.params.sessionId);
+    io.emit('uploadCancelled', { sessionId: req.params.sessionId });
+    res.json({ success: true, message: 'Upload cancelled' });
+  } else {
+    res.status(404).json({ error: 'Upload session not found' });
+  }
+});
+
+// Get user's upload history
+app.get('/api/upload/history', authenticate, (req, res) => {
+  try {
+    const beats = readData('beats.json');
+    
+    const uploadHistory = {
+      beats: beats.filter(b => b.producerId === req.user.id).map(b => ({
+        id: b.id,
+        title: b.title,
+        fileUrl: b.fileUrl,
+        createdAt: b.createdAt,
+        plays: b.plays,
+        downloads: b.downloads,
+        type: 'beat'
+      })),
+      recordings: []
+    };
+    
+    beats.forEach(beat => {
+      beat.versions.forEach(version => {
+        if (version.vocalistId === req.user.id) {
+          uploadHistory.recordings.push({
+            id: version.id,
+            title: version.title,
+            beatId: beat.id,
+            beatTitle: beat.title,
+            fileUrl: version.fileUrl,
+            createdAt: version.createdAt,
+            plays: version.plays,
+            rating: version.rating,
+            type: 'recording',
+            isFork: version.isFork || false
+          });
+        }
+      });
+    });
+    
+    // Sort by date
+    uploadHistory.beats.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    uploadHistory.recordings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.json(uploadHistory);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ================== AUTH ROUTES ==================
