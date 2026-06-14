@@ -1,4 +1,4 @@
-/* 8Trax - Complete Mobile-First CSS */
+/* 8Trax - Complete Professional DAW Studio CSS */
 :root {
     --primary: #667eea;
     --primary-dark: #5a67d8;
@@ -43,7 +43,7 @@ body {
     backdrop-filter: blur(10px);
     display: flex;
     justify-content: space-around;
-    padding: 8px 8px;
+    padding: 8px 4px;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 100;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
@@ -55,19 +55,19 @@ body {
     align-items: center;
     background: none;
     border: none;
-    padding: 6px 8px;
+    padding: 6px 6px;
     cursor: pointer;
     border-radius: 10px;
     transition: all 0.2s;
 }
 
 .nav-icon {
-    font-size: 22px;
+    font-size: 20px;
     margin-bottom: 2px;
 }
 
 .nav-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
     color: #6b7280;
 }
@@ -195,14 +195,8 @@ body {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .page-header {
@@ -462,7 +456,7 @@ audio {
     display: flex;
     gap: 12px;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     padding: 12px;
     background: #1f2937;
     border-radius: 12px;
@@ -474,6 +468,10 @@ audio {
     font-size: 14px;
 }
 
+.transport-controls .btn-danger {
+    background: var(--danger);
+}
+
 .timer-display {
     background: #111827;
     padding: 10px 16px;
@@ -483,8 +481,124 @@ audio {
     font-size: 14px;
     font-weight: bold;
     text-align: center;
+    min-width: 140px;
 }
 
+/* Metronome Controls */
+.metronome-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: #1f2937;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: white;
+    font-size: 13px;
+}
+
+.toggle-switch input {
+    display: none;
+}
+
+.toggle-slider {
+    width: 44px;
+    height: 22px;
+    background: #6b7280;
+    border-radius: 22px;
+    position: relative;
+    transition: 0.3s;
+}
+
+.toggle-slider:before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: #667eea;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}
+
+.toggle-label {
+    font-size: 12px;
+}
+
+.bpm-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+}
+
+.bpm-control label {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.bpm-control input {
+    width: 70px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: none;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    background: #374151;
+    color: white;
+}
+
+/* Count In Display */
+.count-in-display {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    border-radius: 80px;
+    padding: 40px 60px;
+    text-align: center;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    animation: pulse 1s infinite;
+}
+
+.count-in-number {
+    font-size: 80px;
+    font-weight: bold;
+    color: #667eea;
+    font-family: monospace;
+}
+
+.count-in-text {
+    font-size: 18px;
+    color: white;
+    font-weight: 500;
+}
+
+/* Track Container */
 .track-container {
     display: flex;
     flex-direction: column;
@@ -525,6 +639,11 @@ audio {
     width: 130px;
 }
 
+.track-name-input:read-only {
+    opacity: 0.7;
+    cursor: default;
+}
+
 .track-controls {
     display: flex;
     gap: 6px;
@@ -538,6 +657,16 @@ audio {
     border-radius: 8px;
     cursor: pointer;
     font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.track-record:active {
+    transform: scale(0.95);
+}
+
+.track-record.recording {
+    background: var(--warning);
 }
 
 .track-clear {
@@ -548,6 +677,8 @@ audio {
     border-radius: 8px;
     cursor: pointer;
     font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
 }
 
 .track-fx {
@@ -558,6 +689,8 @@ audio {
     border-radius: 8px;
     cursor: pointer;
     font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
 }
 
 .track-waveform {
@@ -593,12 +726,24 @@ audio {
     color: white;
     font-size: 12px;
     margin: 8px 0;
+    flex-wrap: wrap;
 }
 
 .track-volume input {
     flex: 1;
     height: 4px;
     border-radius: 2px;
+    -webkit-appearance: none;
+    background: #444;
+}
+
+.track-volume input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
 }
 
 .track-solo {
@@ -609,6 +754,7 @@ audio {
     border-radius: 6px;
     cursor: pointer;
     font-size: 10px;
+    font-weight: 500;
 }
 
 .track-mute {
@@ -619,6 +765,7 @@ audio {
     border-radius: 6px;
     cursor: pointer;
     font-size: 10px;
+    font-weight: 500;
 }
 
 .track-upload {
@@ -1168,48 +1315,6 @@ audio {
     font-size: 12px;
 }
 
-/* ==================== MINI PLAYER ==================== */
-.mini-player {
-    position: fixed;
-    bottom: 70px;
-    left: 12px;
-    right: 12px;
-    background: white;
-    border-radius: 14px;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 98;
-}
-
-.player-info {
-    flex: 1;
-}
-
-.player-title {
-    font-weight: 600;
-    font-size: 13px;
-}
-
-.player-artist {
-    font-size: 11px;
-    color: var(--gray);
-}
-
-.player-controls {
-    display: flex;
-    gap: 12px;
-}
-
-.player-controls button {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-}
-
 /* ==================== UTILITIES ==================== */
 .text-center {
     text-align: center;
@@ -1225,6 +1330,18 @@ audio {
 .load-more {
     text-align: center;
     margin-top: 20px;
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==================== RESPONSIVE ==================== */
@@ -1244,11 +1361,11 @@ audio {
     }
     
     .nav-label {
-        font-size: 11px;
+        font-size: 10px;
     }
     
     .nav-icon {
-        font-size: 24px;
+        font-size: 22px;
     }
 }
 
@@ -1290,32 +1407,26 @@ audio {
     .feed-badge {
         font-size: 9px;
     }
-}
-
-/* ==================== ANIMATIONS ==================== */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
+    
+    .transport-controls {
+        flex-wrap: wrap;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    
+    .timer-display {
+        font-size: 11px;
+        min-width: 120px;
     }
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 1;
-        transform: scale(1);
+    
+    .metronome-controls {
+        gap: 10px;
     }
-    50% {
-        opacity: 0.7;
-        transform: scale(1.05);
+    
+    .count-in-number {
+        font-size: 60px;
     }
-    100% {
-        opacity: 1;
-        transform: scale(1);
+    
+    .count-in-display {
+        padding: 30px 40px;
     }
 }
 
