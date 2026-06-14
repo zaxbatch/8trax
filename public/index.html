@@ -48,7 +48,6 @@
 
     <!-- Main App Container -->
     <div class="app-container">
-        <!-- Header -->
         <header class="app-header">
             <div class="logo">
                 <span class="logo-icon">🎵</span>
@@ -61,7 +60,6 @@
             </div>
         </header>
 
-        <!-- Welcome Guest Banner -->
         <div id="welcomeBanner" class="welcome-banner" style="display: none;">
             <div class="welcome-content">
                 <h3>Welcome to 8Trax! 🎵</h3>
@@ -115,7 +113,6 @@
 
         <!-- Main Content Pages -->
         <main class="main-content">
-            <!-- Feed Page -->
             <div id="feedPage" class="page active">
                 <div class="page-header">
                     <h2>Feed</h2>
@@ -124,7 +121,6 @@
                 <div id="feedContent" class="feed-container"></div>
             </div>
 
-            <!-- Discover Page -->
             <div id="discoverPage" class="page">
                 <div class="page-header">
                     <h2>Discover</h2>
@@ -146,12 +142,8 @@
                     </select>
                 </div>
                 <div id="discoverContent" class="beats-grid"></div>
-                <div class="load-more">
-                    <button onclick="loadMoreBeats()" class="btn-secondary">Load More</button>
-                </div>
             </div>
 
-            <!-- Trending Page -->
             <div id="trendingPage" class="page">
                 <div class="page-header">
                     <h2>Trending</h2>
@@ -160,7 +152,6 @@
                 <div id="trendingContent" class="feed-container"></div>
             </div>
 
-            <!-- Leaderboard Page -->
             <div id="leaderboardPage" class="page">
                 <div class="page-header">
                     <h2>Leaderboard</h2>
@@ -182,17 +173,16 @@
                     </div>
                     <div id="multiTrackStudio" class="multi-track-studio" style="display: none;">
                         <div class="transport-controls">
-                            <button id="playBtn" class="btn-primary" onclick="playAllTracks()">▶️ Play</button>
-                            <button id="stopBtn" class="btn-secondary" onclick="stopAllTracks()">⏹️ Stop</button>
-                            <button id="exportBtn" class="btn-primary" onclick="exportMix()">💾 Export</button>
+                            <button id="playBtn" class="btn-primary" onclick="playStudioTracks()">▶️ Play All</button>
+                            <button id="stopBtn" class="btn-secondary" onclick="stopStudioTracks()">⏹️ Stop</button>
+                            <div id="recordingTimerDisplay" class="timer-display">Ready</div>
                         </div>
                         <div id="trackContainer" class="track-container"></div>
-                        <button class="btn-secondary" onclick="closeStudio()">← Back to Beats</button>
+                        <button class="btn-secondary" style="margin-top: 16px; width: 100%;" onclick="closeStudio()">← Back to Beats</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Library Page -->
             <div id="libraryPage" class="page">
                 <div class="page-header">
                     <h2>My Library</h2>
@@ -206,7 +196,6 @@
                 <div id="libraryContent" class="beats-grid"></div>
             </div>
 
-            <!-- Upload Page -->
             <div id="uploadPage" class="page">
                 <div class="page-header">
                     <h2>Upload Beat</h2>
@@ -248,13 +237,11 @@
                 </div>
             </div>
 
-            <!-- Profile Page -->
             <div id="profilePage" class="page">
                 <div id="profileContent"></div>
             </div>
         </main>
 
-        <!-- Mini Player -->
         <div id="miniPlayer" class="mini-player" style="display: none;">
             <div class="player-info">
                 <div class="player-title" id="playerTitle">Now Playing</div>
@@ -267,18 +254,17 @@
         </div>
     </div>
 
-    <!-- Beat Detail Modal -->
+    <!-- Modals -->
     <div id="beatModal" class="modal">
         <div class="modal-content modal-large">
             <div class="modal-header">
-                <h2 id="beatModalTitle">Beat Details</h2>
+                <h2>Beat Details</h2>
                 <button class="modal-close" onclick="closeModal('beatModal')">&times;</button>
             </div>
             <div id="beatDetail"></div>
         </div>
     </div>
 
-    <!-- Comment Modal -->
     <div id="commentModal" class="modal">
         <div class="modal-content modal-medium">
             <div class="modal-header">
@@ -293,7 +279,6 @@
         </div>
     </div>
 
-    <!-- FX Modal -->
     <div id="fxModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
@@ -311,17 +296,11 @@
                     <input type="range" id="delayAmount" min="0" max="100" value="0">
                     <input type="checkbox" id="delayToggle"> Enable
                 </div>
-                <div class="fx-item">
-                    <label>Echo</label>
-                    <input type="range" id="echoAmount" min="0" max="100" value="0">
-                    <input type="checkbox" id="echoToggle"> Enable
-                </div>
             </div>
             <button onclick="applyFX()" class="btn-primary">Apply Effects</button>
         </div>
     </div>
 
-    <!-- Login Modal -->
     <div id="loginModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
@@ -329,18 +308,17 @@
                 <button class="modal-close" onclick="closeModal('loginModal')">&times;</button>
             </div>
             <form onsubmit="login(); return false;">
-                <input type="email" id="loginEmail" placeholder="Email" required style="margin-bottom: 12px;">
-                <input type="password" id="loginPassword" placeholder="Password" required style="margin-bottom: 20px;">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
                 <button type="submit" class="btn-primary btn-block">Login</button>
                 <p class="text-center" style="margin-top: 16px;">
-                    Don't have an account? 
-                    <a href="#" onclick="closeModal('loginModal'); showRegisterModal(); return false;" style="color: #667eea;">Sign Up</a>
+                    Don't have an account?
+                    <a href="#" onclick="closeModal('loginModal'); showRegisterModal(); return false;">Sign Up</a>
                 </p>
             </form>
         </div>
     </div>
 
-    <!-- Register Modal -->
     <div id="registerModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
@@ -348,15 +326,15 @@
                 <button class="modal-close" onclick="closeModal('registerModal')">&times;</button>
             </div>
             <form onsubmit="register(); return false;">
-                <input type="text" id="regUsername" placeholder="Username *" required style="margin-bottom: 12px;">
-                <input type="email" id="regEmail" placeholder="Email *" required style="margin-bottom: 12px;">
-                <input type="text" id="regDisplayName" placeholder="Display Name" style="margin-bottom: 12px;">
-                <textarea id="regBio" placeholder="Bio (optional)" rows="2" style="margin-bottom: 12px;"></textarea>
-                <input type="password" id="regPassword" placeholder="Password *" required style="margin-bottom: 20px;">
+                <input type="text" id="regUsername" placeholder="Username" required>
+                <input type="email" id="regEmail" placeholder="Email" required>
+                <input type="text" id="regDisplayName" placeholder="Display Name">
+                <textarea id="regBio" placeholder="Bio" rows="2"></textarea>
+                <input type="password" id="regPassword" placeholder="Password" required>
                 <button type="submit" class="btn-primary btn-block">Create Account</button>
                 <p class="text-center" style="margin-top: 16px;">
-                    Already have an account? 
-                    <a href="#" onclick="closeModal('registerModal'); showLoginModal(); return false;" style="color: #667eea;">Login</a>
+                    Already have an account?
+                    <a href="#" onclick="closeModal('registerModal'); showLoginModal(); return false;">Login</a>
                 </p>
             </form>
         </div>
