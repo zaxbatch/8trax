@@ -4,350 +4,351 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
   <meta name="theme-color" content="#667eea">
-  <title>8Trax - Upload with Progress</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px;
-    }
-    
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    h1 {
-      font-size: 24px;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .form-group {
-      margin-bottom: 16px;
-    }
-    
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 500;
-      font-size: 13px;
-      color: #374151;
-    }
-    
-    input, select, textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      font-size: 14px;
-      font-family: inherit;
-    }
-    
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-    
-    button {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    button:active {
-      transform: scale(0.98);
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      width: 100%;
-    }
-    
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-    
-    /* Modal */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .modal.active {
-      display: flex;
-    }
-    
-    .modal-content {
-      background: white;
-      border-radius: 20px;
-      max-width: 400px;
-      width: 100%;
-      padding: 24px;
-    }
-    
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    
-    .modal-close {
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      padding: 0;
-    }
-    
-    /* Progress Bar */
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: #e5e7eb;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 16px 0;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      transition: width 0.3s ease;
-      width: 0%;
-    }
-    
-    .progress-stats {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 8px;
-    }
-    
-    .upload-list {
-      margin-top: 16px;
-    }
-    
-    .upload-item {
-      background: #f3f4f6;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .upload-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    
-    .upload-filename {
-      font-weight: 600;
-      font-size: 13px;
-    }
-    
-    .upload-status {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: #667eea;
-      color: white;
-    }
-    
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      right: 20px;
-      background: #333;
-      color: white;
-      padding: 12px;
-      border-radius: 10px;
-      text-align: center;
-      z-index: 1100;
-      animation: fadeIn 0.3s ease;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: #6b7280;
-    }
-    
-    .beat-card {
-      background: #f3f4f6;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-    }
-    
-    .beat-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    
-    audio {
-      width: 100%;
-      margin: 12px 0;
-    }
-  </style>
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>8Trax - Professional DAW Studio</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="card">
-      <h1>🎵 8Trax Studio</h1>
-      <p>Upload your beats with real-time progress</p>
+  <!-- Mobile Navigation Bar -->
+  <nav class="mobile-nav" id="mobileNav">
+    <button class="nav-item active" data-page="feed">
+      <span class="nav-icon">📱</span>
+      <span class="nav-label">Feed</span>
+    </button>
+    <button class="nav-item" data-page="discover">
+      <span class="nav-icon">🔍</span>
+      <span class="nav-label">Discover</span>
+    </button>
+    <button class="nav-item" data-page="trending">
+      <span class="nav-icon">🔥</span>
+      <span class="nav-label">Trending</span>
+    </button>
+    <button class="nav-item" data-page="leaderboard">
+      <span class="nav-icon">🏆</span>
+      <span class="nav-label">Top</span>
+    </button>
+    <button class="nav-item" data-page="studio">
+      <span class="nav-icon">🎙️</span>
+      <span class="nav-label">Studio</span>
+    </button>
+    <button class="nav-item" data-page="library">
+      <span class="nav-icon">📚</span>
+      <span class="nav-label">Library</span>
+    </button>
+    <button class="nav-item" data-page="upload">
+      <span class="nav-icon">📤</span>
+      <span class="nav-label">Upload</span>
+    </button>
+    <button class="nav-item" data-page="profile">
+      <span class="nav-icon">👤</span>
+      <span class="nav-label">Profile</span>
+    </button>
+  </nav>
+
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">8Trax</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="searchBtn">🔍</button>
+        <button class="icon-btn" id="messagesBtn">💬</button>
+        <div id="authSection" class="auth-section"></div>
+      </div>
+    </header>
+
+    <div id="welcomeBanner" class="welcome-banner" style="display: none;">
+      <div class="welcome-content">
+        <h3>Welcome to 8Trax!</h3>
+        <p>Join the community to record, share, and collaborate</p>
+        <div class="welcome-buttons">
+          <button onclick="showLoginModal()" class="btn-primary">Login</button>
+          <button onclick="showRegisterModal()" class="btn-secondary">Sign Up</button>
+        </div>
+      </div>
     </div>
-    
-    <!-- Auth Section -->
-    <div class="card" id="authCard">
-      <div id="authButtons">
-        <button onclick="showLoginModal()" style="margin-right: 10px;">Login</button>
-        <button onclick="showRegisterModal()" class="btn-primary">Sign Up</button>
+
+    <main class="main-content">
+      <!-- Feed Page -->
+      <div id="feedPage" class="page active">
+        <div id="feedContent" class="feed-container"></div>
       </div>
-      <div id="userInfo" style="display: none;">
-        <p>Welcome, <strong id="userName"></strong>!</p>
-        <button onclick="logout()" class="btn-danger" style="width: auto; padding: 8px 16px;">Logout</button>
+
+      <!-- Discover Page -->
+      <div id="discoverPage" class="page">
+        <div class="page-header">
+          <h2>Discover</h2>
+          <p class="page-subtitle">Find new beats and artists</p>
+        </div>
+        <div class="filters">
+          <select id="discoverGenre" class="filter-select">
+            <option value="all">All Genres</option>
+            <option value="Hip Hop">Hip Hop</option>
+            <option value="R&B">R&B</option>
+            <option value="Pop">Pop</option>
+            <option value="Rock">Rock</option>
+            <option value="Electronic">Electronic</option>
+            <option value="Jazz">Jazz</option>
+          </select>
+          <select id="discoverSort" class="filter-select">
+            <option value="newest">Newest</option>
+            <option value="popular">Popular</option>
+          </select>
+        </div>
+        <div id="discoverContent" class="beats-grid"></div>
       </div>
-    </div>
-    
-    <!-- Upload Form -->
-    <div class="card">
-      <h3>📤 Upload New Beat</h3>
-      <div class="form-group">
-        <label>Title *</label>
-        <input type="text" id="beatTitle" placeholder="My awesome beat">
+
+      <!-- Trending Page -->
+      <div id="trendingPage" class="page">
+        <div class="page-header">
+          <h2>Trending</h2>
+          <p class="page-subtitle">Hottest beats right now</p>
+        </div>
+        <div id="trendingContent" class="feed-container"></div>
       </div>
-      <div class="form-group">
-        <label>Genre</label>
-        <select id="beatGenre">
-          <option value="Hip Hop">Hip Hop</option>
-          <option value="R&B">R&B</option>
-          <option value="Pop">Pop</option>
-          <option value="Electronic">Electronic</option>
-        </select>
+
+      <!-- Leaderboard Page -->
+      <div id="leaderboardPage" class="page">
+        <div class="page-header">
+          <h2>Leaderboard</h2>
+          <p class="page-subtitle">Top creators</p>
+        </div>
+        <div id="leaderboardContent" class="leaderboard-container"></div>
       </div>
-      <div class="form-group">
-        <label>BPM *</label>
-        <input type="number" id="beatBpm" placeholder="120">
+
+      <!-- Studio Page -->
+      <div id="studioPage" class="page">
+        <div class="page-header">
+          <h2>8-Track Studio</h2>
+          <p class="page-subtitle">Professional multi-track recording</p>
+        </div>
+        <div id="studioContent">
+          <div class="studio-selector">
+            <h3>Select a Beat to Record On</h3>
+            <div id="beatSelector" class="beats-grid"></div>
+          </div>
+          <div id="multiTrackStudio" class="multi-track-studio" style="display: none;">
+            <!-- Transport Controls -->
+            <div class="transport-controls">
+              <button id="playBtn" class="btn-primary" onclick="playAllTracks()">▶️ Play</button>
+              <button id="stopBtn" class="btn-secondary" onclick="stopAllTracks()">⏹️ Stop</button>
+              <button id="recordBtn" class="btn-danger" onclick="prepareRecording()">🔴 Record</button>
+              <div id="recordingTimerDisplay" class="timer-display">Ready</div>
+            </div>
+            
+            <!-- Metronome Controls -->
+            <div class="metronome-controls">
+              <label class="toggle-switch">
+                <input type="checkbox" id="metronomeToggle" onchange="toggleMetronome()">
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">Metronome</span>
+              </label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="countInToggle" onchange="toggleCountIn()" checked>
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">Count In (4 beats)</span>
+              </label>
+              <div class="bpm-control">
+                <label>BPM:</label>
+                <input type="number" id="metronomeBPM" value="120" min="40" max="240" step="1" onchange="updateMetronomeBPM()">
+              </div>
+            </div>
+
+            <!-- Count In Display -->
+            <div id="countInDisplay" class="count-in-display" style="display: none;">
+              <div class="count-in-number">4</div>
+              <div class="count-in-text">Get Ready...</div>
+            </div>
+
+            <!-- Tracks Container -->
+            <div id="trackContainer" class="track-container"></div>
+
+            <button class="btn-secondary" style="margin-top: 16px; width: 100%;" onclick="closeStudio()">Back to Beats</button>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Tags</label>
-        <input type="text" id="beatTags" placeholder="chill, trap, melodic">
+
+      <!-- Library Page -->
+      <div id="libraryPage" class="page">
+        <div class="page-header">
+          <h2>My Library</h2>
+          <p class="page-subtitle">Saved beats and recordings</p>
+        </div>
+        <div class="library-tabs">
+          <button class="lib-tab active" data-lib="saved">Saved Beats</button>
+          <button class="lib-tab" data-lib="my-beats">My Beats</button>
+          <button class="lib-tab" data-lib="my-recordings">My Recordings</button>
+        </div>
+        <div id="libraryContent" class="beats-grid"></div>
       </div>
-      <div class="form-group">
-        <label>Description</label>
-        <textarea id="beatDescription" rows="3" placeholder="Describe your beat..."></textarea>
+
+      <!-- Upload Page -->
+      <div id="uploadPage" class="page">
+        <div class="page-header">
+          <h2>Upload Beat</h2>
+          <p class="page-subtitle">Share your production</p>
+        </div>
+        <div class="upload-form">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="beatTitle" placeholder="Beat title">
+          </div>
+          <div class="form-group">
+            <label>Genre</label>
+            <select id="beatGenre">
+              <option value="Hip Hop">Hip Hop</option>
+              <option value="R&B">R&B</option>
+              <option value="Pop">Pop</option>
+              <option value="Rock">Rock</option>
+              <option value="Electronic">Electronic</option>
+              <option value="Jazz">Jazz</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>BPM</label>
+            <input type="number" id="beatBpm" placeholder="120">
+          </div>
+          <div class="form-group">
+            <label>Tags</label>
+            <input type="text" id="beatTags" placeholder="chill, trap, melodic">
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="beatDescription" rows="3" placeholder="Describe your beat..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Audio File</label>
+            <input type="file" id="beatFile" accept="audio/*">
+          </div>
+          <button onclick="uploadBeat()" class="btn-primary btn-block">Upload Beat</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Audio File * (Max 100MB)</label>
-        <input type="file" id="beatFile" accept="audio/*">
-        <small id="fileInfo" style="font-size: 11px; color: #6b7280;"></small>
+
+      <!-- Profile Page -->
+      <div id="profilePage" class="page">
+        <div id="profileContent"></div>
       </div>
-      <button id="uploadBtn" class="btn-primary">Upload Beat</button>
-    </div>
-    
-    <!-- Active Uploads -->
-    <div class="card" id="activeUploadsCard" style="display: none;">
-      <h3>⏳ Active Uploads</h3>
-      <div id="uploadsList"></div>
-    </div>
-    
-    <!-- Beats List -->
-    <div class="card">
-      <h3>🎧 Recent Beats</h3>
-      <div id="beatsList"></div>
-    </div>
+    </main>
   </div>
-  
-  <!-- Upload Progress Modal -->
-  <div id="uploadModal" class="modal">
-    <div class="modal-content">
+
+  <!-- Modals -->
+  <div id="beatModal" class="modal">
+    <div class="modal-content modal-large">
       <div class="modal-header">
-        <h3>Uploading...</h3>
-        <button class="modal-close" id="closeUploadModalBtn">&times;</button>
+        <h2>Beat Details</h2>
+        <button class="modal-close" onclick="closeModal('beatModal')">&times;</button>
       </div>
-      <div>
-        <p><strong id="modalFileName"></strong></p>
-        <div class="progress-bar">
-          <div id="modalProgressFill" class="progress-fill"></div>
-        </div>
-        <div class="progress-stats">
-          <span id="modalPercentage">0%</span>
-          <span id="modalSpeed">0 MB/s</span>
-          <span id="modalTimeRemaining">--</span>
-        </div>
-        <button id="cancelUploadBtn" class="btn-danger" style="width: 100%; margin-top: 16px;">Cancel Upload</button>
+      <div id="beatDetail"></div>
+    </div>
+  </div>
+
+  <div id="commentModal" class="modal">
+    <div class="modal-content modal-medium">
+      <div class="modal-header">
+        <h3>Comments</h3>
+        <button class="modal-close" onclick="closeModal('commentModal')">&times;</button>
+      </div>
+      <div id="commentsList" class="comments-list"></div>
+      <div class="comment-input">
+        <input type="text" id="commentInput" placeholder="Add a comment...">
+        <button onclick="addComment()" class="btn-primary">Post</button>
       </div>
     </div>
   </div>
-  
-  <!-- Login Modal -->
+
+  <div id="fxModal" class="modal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>Track Effects</h3>
+        <button class="modal-close" onclick="closeModal('fxModal')">&times;</button>
+      </div>
+      <div class="fx-controls">
+        <div class="fx-item">
+          <label>Reverb</label>
+          <input type="range" id="reverbAmount" min="0" max="100" value="0">
+          <input type="checkbox" id="reverbToggle">
+        </div>
+        <div class="fx-item">
+          <label>Delay</label>
+          <input type="range" id="delayAmount" min="0" max="100" value="0">
+          <input type="checkbox" id="delayToggle">
+        </div>
+        <button onclick="applyFX()" class="btn-primary">Apply Effects</button>
+      </div>
+    </div>
+  </div>
+
   <div id="loginModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-small">
       <div class="modal-header">
-        <h3>Login</h3>
+        <h3>Welcome Back</h3>
         <button class="modal-close" onclick="closeModal('loginModal')">&times;</button>
       </div>
-      <input type="email" id="loginEmail" placeholder="Email" style="width: 100%; margin-bottom: 12px;">
-      <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; margin-bottom: 12px;">
-      <button onclick="login()" class="btn-primary">Login</button>
+      <form onsubmit="event.preventDefault(); login()">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button type="submit" class="btn-primary btn-block">Login</button>
+        <p class="text-center" style="margin-top:16px">
+          Don't have an account? <a href="#" onclick="closeModal('loginModal'); showRegisterModal(); return false;">Sign Up</a>
+        </p>
+      </form>
     </div>
   </div>
-  
-  <!-- Register Modal -->
+
   <div id="registerModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-small">
       <div class="modal-header">
-        <h3>Register</h3>
+        <h3>Join 8Trax</h3>
         <button class="modal-close" onclick="closeModal('registerModal')">&times;</button>
       </div>
-      <input type="text" id="regUsername" placeholder="Username" style="width: 100%; margin-bottom: 12px;">
-      <input type="email" id="regEmail" placeholder="Email" style="width: 100%; margin-bottom: 12px;">
-      <input type="text" id="regDisplayName" placeholder="Display Name" style="width: 100%; margin-bottom: 12px;">
-      <input type="password" id="regPassword" placeholder="Password" style="width: 100%; margin-bottom: 12px;">
-      <button onclick="register()" class="btn-primary">Register</button>
+      <form onsubmit="event.preventDefault(); register()">
+        <input type="text" id="regUsername" placeholder="Username" required>
+        <input type="email" id="regEmail" placeholder="Email" required>
+        <input type="text" id="regDisplayName" placeholder="Display Name">
+        <textarea id="regBio" placeholder="Bio" rows="2"></textarea>
+        <input type="password" id="regPassword" placeholder="Password" required>
+        <button type="submit" class="btn-primary btn-block">Create Account</button>
+        <p class="text-center" style="margin-top:16px">
+          Already have an account? <a href="#" onclick="closeModal('registerModal'); showLoginModal(); return false;">Login</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <div id="messagesModal" class="modal">
+    <div class="modal-content modal-medium">
+      <div class="modal-header">
+        <h3>Messages</h3>
+        <button class="modal-close" onclick="closeModal('messagesModal')">&times;</button>
+      </div>
+      <div class="chat-search">
+        <input type="text" id="chatUserSearch" placeholder="Search for users to chat with...">
+        <div id="chatSearchResults" class="chat-search-results"></div>
+      </div>
+      <div id="conversationsList" class="conversations-list"></div>
+      <div id="chatArea" class="chat-area" style="display: none;">
+        <div class="chat-header" id="chatHeader"></div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input">
+          <input type="text" id="messageInput" placeholder="Type a message...">
+          <button onclick="sendMessage()" class="btn-primary">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchModal" class="modal">
+    <div class="modal-content modal-medium">
+      <div class="modal-header">
+        <h3>Search</h3>
+        <button class="modal-close" onclick="closeModal('searchModal')">&times;</button>
+      </div>
+      <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search beats or users...">
+        <div id="searchResultsList" class="search-results-list"></div>
+      </div>
     </div>
   </div>
 

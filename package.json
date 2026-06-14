@@ -1,7 +1,7 @@
 {
   "name": "8trax",
   "version": "2.0.0",
-  "description": "8Trax - DAW Collaboration Studio",
+  "description": "8Trax - Mobile-Friendly DAW Collaboration Studio",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
