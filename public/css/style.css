@@ -665,10 +665,6 @@ audio {
     transform: scale(0.95);
 }
 
-.track-record.recording {
-    background: var(--warning);
-}
-
 .track-clear {
     background: var(--warning);
     color: white;
@@ -705,18 +701,6 @@ audio {
     display: block;
     width: 100%;
     height: 45px;
-}
-
-.waveform-placeholder {
-    position: absolute;
-    color: #6b7280;
-    font-size: 11px;
-    text-align: center;
-    width: 100%;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-    pointer-events: none;
 }
 
 .track-volume {
@@ -766,10 +750,6 @@ audio {
     cursor: pointer;
     font-size: 10px;
     font-weight: 500;
-}
-
-.track-upload {
-    margin-top: 8px;
 }
 
 /* ==================== LIBRARY TABS ==================== */
@@ -1010,7 +990,11 @@ audio {
     border-color: var(--primary);
 }
 
-/* ==================== MESSAGES ==================== */
+.comment-input button {
+    padding: 10px 18px;
+}
+
+/* ==================== MESSAGES / CHAT ==================== */
 .messages-container {
     display: flex;
     flex-direction: column;
@@ -1020,6 +1004,7 @@ audio {
 .conversations-list {
     flex: 1;
     overflow-y: auto;
+    max-height: 500px;
 }
 
 .conversation-item {
@@ -1040,20 +1025,30 @@ audio {
     background: #e5e7eb;
 }
 
+/* Chat Area */
 .chat-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     height: 100%;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 .chat-header {
-    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f3f4f6;
     border-bottom: 1px solid #e5e7eb;
     font-weight: 600;
-    background: white;
-    position: sticky;
-    top: 0;
+}
+
+.chat-header .modal-close {
+    font-size: 20px;
+    padding: 0;
 }
 
 .chat-messages {
@@ -1062,11 +1057,14 @@ audio {
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    max-height: 400px;
+    min-height: 300px;
 }
 
 .message {
     display: flex;
+    margin-bottom: 4px;
 }
 
 .message.sent {
@@ -1078,11 +1076,12 @@ audio {
 }
 
 .message-bubble {
-    max-width: 80%;
-    padding: 10px 14px;
+    max-width: 75%;
+    padding: 8px 14px;
     border-radius: 18px;
     font-size: 13px;
     word-wrap: break-word;
+    line-height: 1.4;
 }
 
 .message.sent .message-bubble {
@@ -1099,7 +1098,7 @@ audio {
 
 .chat-input {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     padding: 12px;
     border-top: 1px solid #e5e7eb;
     background: white;
@@ -1427,6 +1426,15 @@ audio {
     
     .count-in-display {
         padding: 30px 40px;
+    }
+    
+    .message-bubble {
+        max-width: 85%;
+        font-size: 12px;
+    }
+    
+    .chat-input button {
+        padding: 10px 14px;
     }
 }
 
