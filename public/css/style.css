@@ -1515,6 +1515,242 @@ audio {
   margin-left: 8px;
 }
 
+/* =============== BEAT DETAIL MODAL STYLING =============== */
+.beat-detail-container {
+  padding: 8px;
+}
+
+.beat-detail-header {
+  margin-bottom: 20px;
+}
+
+.beat-detail-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.beat-detail-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fork-badge-large {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.beat-detail-producer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--light);
+  border-radius: 12px;
+}
+
+.producer-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.producer-info {
+  flex: 1;
+}
+
+.producer-name {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.producer-username {
+  font-size: 12px;
+  color: var(--gray);
+}
+
+.beat-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+  border-radius: 16px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.meta-icon {
+  font-size: 16px;
+}
+
+.meta-text {
+  font-weight: 500;
+}
+
+.beat-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.beat-detail-description {
+  background: var(--light);
+  padding: 16px;
+  border-radius: 12px;
+  margin: 16px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.beat-detail-player {
+  margin: 20px 0;
+  padding: 16px;
+  background: #1a1a1a;
+  border-radius: 16px;
+}
+
+.beat-detail-player audio {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.beat-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.beat-detail-actions button {
+  flex: 1;
+  min-width: 100px;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 20px;
+  background: var(--light);
+  border-radius: 12px;
+  color: var(--gray);
+}
+
+.beat-detail-versions {
+  margin-top: 24px;
+  border-top: 2px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.beat-detail-versions h4 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: var(--dark);
+}
+
+.versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.version-card {
+  background: var(--light);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.version-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.version-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--dark);
+}
+
+.version-rating {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.version-artist {
+  font-size: 12px;
+  color: var(--gray);
+  margin-bottom: 12px;
+}
+
+.version-audio {
+  width: 100%;
+  margin: 12px 0;
+}
+
+.version-actions {
+  margin-top: 12px;
+}
+
+.vote-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.vote-select {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 12px;
+  background: white;
+  cursor: pointer;
+}
+
+.vote-btn {
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+.delete-recording-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
 /* =============== ANIMATIONS =============== */
 @keyframes pulse {
   0% { opacity: 1; transform: scale(1); }
@@ -1622,5 +1858,27 @@ audio {
   
   .profile-stats {
     gap: 12px;
+  }
+  
+  .beat-detail-title {
+    font-size: 20px;
+  }
+  
+  .beat-detail-meta {
+    gap: 12px;
+  }
+  
+  .meta-item {
+    font-size: 11px;
+  }
+  
+  .beat-detail-actions button {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+  
+  .version-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

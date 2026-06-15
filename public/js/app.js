@@ -116,8 +116,6 @@ class API {
   async getUserProfile(username) { return this.request(`/api/users/${username}`); }
   async followUser(userId) { return this.request(`/api/users/${userId}/follow`, { method: 'POST' }); }
   async forkMix(formData, onProgress) { return this.uploadWithProgress('/api/mix/fork', formData, onProgress); }
-  async deleteBeat(beatId) { return this.request(`/api/beats/${beatId}`, { method: 'DELETE' }); }
-  async deleteRecording(recordingId) { return this.request(`/api/recordings/${recordingId}`, { method: 'DELETE' }); }
 }
 
 const api = new API();
@@ -362,7 +360,7 @@ async function discoverMusic() {
       <div class="beat-card" onclick="viewBeat('${beat.id}')">
         <div class="beat-title">${escapeHtml(beat.title)}</div>
         <div class="beat-info">by ${escapeHtml(beat.producerName)} • ${beat.genre} • ${beat.bpm} BPM</div>
-        <div class="beat-stats">${beat.plays} plays • ${beat.downloads} downloads</div>
+        <div class="beat-stats">👂 ${beat.plays} • ⬇️ ${beat.downloads}</div>
         <div class="beat-tags">${beat.tags?.map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('') || ''}</div>
         <audio controls onclick="event.stopPropagation()">
           <source src="${CONFIG.API_URL}${beat.fileUrl}">
@@ -394,7 +392,7 @@ async function loadTrending() {
         <div class="feed-header">
           <div class="feed-avatar">${(item.producerName?.[0] || 'U').toUpperCase()}</div>
           <div class="feed-username">${escapeHtml(item.producerName || item.vocalistName)}</div>
-          <div class="feed-time">${item.plays} plays • ${item.downloads} downloads</div>
+          <div class="feed-time">🔥 ${item.popularity}热度</div>
         </div>
         <div class="beat-title">${escapeHtml(item.title)}</div>
         <audio controls onclick="event.stopPropagation()">
@@ -425,12 +423,12 @@ async function loadLeaderboard() {
           <div class="leaderboard-avatar">${(user.displayName?.[0] || user.username?.[0]).toUpperCase()}</div>
           <div>
             <div><strong>${escapeHtml(user.displayName || user.username)}</strong></div>
-            <div style="font-size:12px;">${user.points} pts</div>
+            <div style="font-size:12px;">⭐ ${user.points} pts</div>
           </div>
         </div>
         <div class="leaderboard-stats">
-          <div>${user.uploadedBeats} beats</div>
-          <div>${user.recordings} recordings</div>
+          <div>🎵 ${user.uploadedBeats}</div>
+          <div>🎤 ${user.recordings}</div>
         </div>
       </div>
     `).join('');
@@ -565,15 +563,28 @@ async function removeFromLibrary(beatId) {
 
 // ================== DELETE FUNCTIONS ==================
 async function deleteBeat(beatId, beatTitle) {
-  if (!confirm(`Are you sure you want to delete "${beatTitle}"? This action cannot be undone.`)) {
+  if (!confirm(`🗑️ Are you sure you want to delete "${beatTitle}"?\n\nThis action cannot be undone and will permanently delete:\n• The beat audio file\n• All vocal recordings on this beat\n• All comments and votes\n• Remove from all users' libraries`)) {
     return;
   }
   
   showProgress('Deleting beat...');
   try {
-    await api.deleteBeat(beatId);
+    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+    const response = await fetch(`${CONFIG.API_URL}/api/beats/${beatId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Delete failed');
+    }
+    
     hideProgress();
-    showToast('Beat deleted successfully!', 'success');
+    showToast('✅ Beat deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-beats';
     loadLibrary(activeTab);
@@ -588,15 +599,28 @@ async function deleteBeat(beatId, beatTitle) {
 }
 
 async function deleteRecording(recordingId, recordingTitle) {
-  if (!confirm(`Are you sure you want to delete "${recordingTitle}"? This action cannot be undone.`)) {
+  if (!confirm(`🗑️ Are you sure you want to delete "${recordingTitle}"?\n\nThis action cannot be undone and will permanently delete your vocal recording and all votes on it.`)) {
     return;
   }
   
   showProgress('Deleting recording...');
   try {
-    await api.deleteRecording(recordingId);
+    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+    const response = await fetch(`${CONFIG.API_URL}/api/recordings/${recordingId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Delete failed');
+    }
+    
     hideProgress();
-    showToast('Recording deleted successfully!', 'success');
+    showToast('✅ Recording deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-recordings';
     loadLibrary(activeTab);
@@ -820,7 +844,7 @@ async function loadBeatsForStudio() {
           <source src="${CONFIG.API_URL}${beat.fileUrl}">
         </audio>
         <button class="btn-primary" style="margin-top:10px; width:100%" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})">
-          Open in Studio
+          🎙️ Open in Studio
         </button>
       </div>
     `).join('');
@@ -1479,47 +1503,112 @@ async function viewBeat(beatId) {
     if (!modalContent) return;
     
     const isOwner = currentUser && beat.producerId === currentUser.id;
+    const isFork = beat.isForkedMix || beat.isFork;
     
     modalContent.innerHTML = `
-      <h3>${escapeHtml(beat.title)}</h3>
-      <p><strong>Producer:</strong> ${escapeHtml(beat.producerName)}</p>
-      <p><strong>Genre:</strong> ${beat.genre} | <strong>BPM:</strong> ${beat.bpm}</p>
-      <p>${beat.plays} plays • ${beat.downloads} downloads</p>
-      <div class="beat-tags">${beat.tags?.map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('') || ''}</div>
-      <audio controls style="width:100%; margin:16px 0">
-        <source src="${CONFIG.API_URL}${beat.fileUrl}">
-      </audio>
-      <div class="beat-actions">
-        ${currentUser ? `
-          <button onclick="downloadBeat('${beat.id}')" class="btn-primary">⬇️ Download</button>
-          <button onclick="addToLibrary('${beat.id}')" class="btn-secondary">📚 Save</button>
-          <button onclick="openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})" class="btn-primary">🎙️ Open in Studio</button>
-          <button onclick="showComments('${beatId}')" class="btn-secondary">💬 Comments (${comments.length})</button>
-          ${isOwner ? `<button onclick="deleteBeat('${beat.id}', '${escapeHtml(beat.title)}')" class="btn-danger">🗑️ Delete Beat</button>` : ''}
-        ` : '<p>Login to interact</p>'}
-      </div>
-      <h4>Vocal Versions (${beat.versions?.length || 0})</h4>
-      ${beat.versions?.map(v => `
-        <div class="recording-item">
-          <strong>${escapeHtml(v.title)}</strong> by ${escapeHtml(v.vocalistName)}<br>
-          ⭐ ${v.rating?.toFixed(1) || 0}/5 (${v.votes?.length || 0} votes)
-          <audio controls>
-            <source src="${CONFIG.API_URL}${v.fileUrl}">
-          </audio>
-          ${currentUser && currentUser.id !== v.vocalistId ? `
-            <div class="vote-section">
-              <select id="rating-${v.id}">
-                <option value="1">1</option><option value="2">2</option>
-                <option value="3">3</option><option value="4">4</option><option value="5">5</option>
-              </select>
-              <button onclick="voteForRecording('${v.id}')" class="btn-secondary">Vote</button>
+      <div class="beat-detail-container">
+        <div class="beat-detail-header">
+          <div class="beat-detail-title-section">
+            <h3 class="beat-detail-title">${escapeHtml(beat.title)}</h3>
+            ${isFork ? '<span class="fork-badge-large">🍴 Forked Version</span>' : ''}
+          </div>
+          <div class="beat-detail-producer">
+            <div class="producer-avatar">${(beat.producerName?.[0] || 'U').toUpperCase()}</div>
+            <div class="producer-info">
+              <div class="producer-name">${escapeHtml(beat.producerName)}</div>
+              <div class="producer-username">@${escapeHtml(beat.producerUsername)}</div>
             </div>
-          ` : ''}
-          ${currentUser && currentUser.id === v.vocalistId ? `
-            <button onclick="deleteRecording('${v.id}', '${escapeHtml(v.title)}')" class="btn-danger" style="margin-top:8px">🗑️ Delete Recording</button>
-          ` : ''}
+          </div>
         </div>
-      `).join('') || '<p>No vocal versions yet</p>'}
+        
+        <div class="beat-detail-meta">
+          <div class="meta-item">
+            <span class="meta-icon">🎵</span>
+            <span class="meta-text">${beat.genre}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon">⏱️</span>
+            <span class="meta-text">${beat.bpm} BPM</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon">👂</span>
+            <span class="meta-text">${beat.plays} plays</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon">⬇️</span>
+            <span class="meta-text">${beat.downloads} downloads</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-icon">📅</span>
+            <span class="meta-text">${new Date(beat.createdAt).toLocaleDateString()}</span>
+          </div>
+        </div>
+        
+        ${beat.tags && beat.tags.length ? `
+          <div class="beat-detail-tags">
+            ${beat.tags.map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('')}
+          </div>
+        ` : ''}
+        
+        ${beat.description ? `
+          <div class="beat-detail-description">
+            <p>${escapeHtml(beat.description)}</p>
+          </div>
+        ` : ''}
+        
+        <div class="beat-detail-player">
+          <audio controls style="width:100%">
+            <source src="${CONFIG.API_URL}${beat.fileUrl}">
+          </audio>
+        </div>
+        
+        <div class="beat-detail-actions">
+          ${currentUser ? `
+            <button onclick="downloadBeat('${beat.id}')" class="btn-primary">⬇️ Download</button>
+            <button onclick="addToLibrary('${beat.id}')" class="btn-secondary">📚 Save to Library</button>
+            <button onclick="openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})" class="btn-primary">🎙️ Open in Studio</button>
+            <button onclick="showComments('${beatId}')" class="btn-secondary">💬 Comments (${comments.length})</button>
+            ${isOwner ? `<button onclick="deleteBeat('${beat.id}', '${escapeHtml(beat.title)}')" class="btn-danger">🗑️ Delete Beat</button>` : ''}
+          ` : '<p class="login-prompt">🔐 Please login to interact with this beat</p>'}
+        </div>
+        
+        <div class="beat-detail-versions">
+          <h4>🎤 Vocal Versions (${beat.versions?.length || 0})</h4>
+          <div class="versions-list">
+            ${beat.versions?.map(v => `
+              <div class="version-card">
+                <div class="version-header">
+                  <div class="version-title">${escapeHtml(v.title)}</div>
+                  <div class="version-rating">⭐ ${v.rating?.toFixed(1) || 0}/5 (${v.votes?.length || 0} votes)</div>
+                </div>
+                <div class="version-artist">
+                  by ${escapeHtml(v.vocalistName)}
+                </div>
+                <audio controls class="version-audio">
+                  <source src="${CONFIG.API_URL}${v.fileUrl}">
+                </audio>
+                <div class="version-actions">
+                  ${currentUser && currentUser.id !== v.vocalistId ? `
+                    <div class="vote-section">
+                      <select id="rating-${v.id}" class="vote-select">
+                        <option value="1">⭐ 1</option>
+                        <option value="2">⭐⭐ 2</option>
+                        <option value="3">⭐⭐⭐ 3</option>
+                        <option value="4">⭐⭐⭐⭐ 4</option>
+                        <option value="5">⭐⭐⭐⭐⭐ 5</option>
+                      </select>
+                      <button onclick="voteForRecording('${v.id}')" class="btn-secondary vote-btn">Vote</button>
+                    </div>
+                  ` : ''}
+                  ${currentUser && currentUser.id === v.vocalistId ? `
+                    <button onclick="deleteRecording('${v.id}', '${escapeHtml(v.title)}')" class="btn-danger delete-recording-btn">🗑️ Delete Recording</button>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('') || '<div class="empty-state">No vocal versions yet. Be the first to record!</div>'}
+          </div>
+        </div>
+      </div>
     `;
     showModal('beatModal');
   } catch (error) {
@@ -1626,7 +1715,7 @@ async function viewProfile(username) {
         ${user.bio ? `<div class="profile-bio">${escapeHtml(user.bio)}</div>` : ''}
         ${currentUser && !isOwnProfile ? `<button onclick="followUser('${user.id}')" class="btn-primary">➕ Follow</button>` : ''}
       </div>
-      <h3>My Beats</h3>
+      <h3>🎵 My Beats</h3>
       <div class="beats-grid">
         ${user.uploadedBeats?.map(b => `
           <div class="beat-card" onclick="viewBeat('${b.id}')">
@@ -1636,9 +1725,9 @@ async function viewProfile(username) {
             </audio>
             ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${b.id}', '${escapeHtml(b.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Beat</button>` : ''}
           </div>
-        `).join('') || '<p>No beats yet</p>'}
+        `).join('') || '<p class="empty-state">No beats yet</p>'}
       </div>
-      <h3>My Forks</h3>
+      <h3>🍴 My Forks</h3>
       <div class="beats-grid">
         ${user.forkedMixes?.map(f => `
           <div class="beat-card" onclick="viewBeat('${f.id}')">
@@ -1648,9 +1737,9 @@ async function viewProfile(username) {
             </audio>
             ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${f.id}', '${escapeHtml(f.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Fork</button>` : ''}
           </div>
-        `).join('') || '<p>No forks yet</p>'}
+        `).join('') || '<p class="empty-state">No forks yet</p>'}
       </div>
-      <h3>My Recordings</h3>
+      <h3>🎤 My Recordings</h3>
       <div class="beats-grid">
         ${user.recordings?.map(r => `
           <div class="beat-card" onclick="viewBeat('${r.beatId}')">
@@ -1661,7 +1750,7 @@ async function viewProfile(username) {
             </audio>
             ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteRecording('${r.id}', '${escapeHtml(r.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Recording</button>` : ''}
           </div>
-        `).join('') || '<p>No recordings yet</p>'}
+        `).join('') || '<p class="empty-state">No recordings yet</p>'}
       </div>
     `;
     showPage('profile');

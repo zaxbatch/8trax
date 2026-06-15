@@ -222,10 +222,10 @@ app.get('/api/library', authenticate, (req, res) => {
 // ==================== DELETE ROUTES ====================
 app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
   try {
-    const beats = readData('beats.json');
-    const users = readData('users.json');
-    const comments = readData('comments.json');
-    const votes = readData('votes.json');
+    let beats = readData('beats.json');
+    let users = readData('users.json');
+    let comments = readData('comments.json');
+    let votes = readData('votes.json');
     
     const beatIndex = beats.findIndex(b => b.id === req.params.beatId);
     if (beatIndex === -1) return res.status(404).json({ error: 'Beat not found' });
@@ -252,7 +252,7 @@ app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
     }
     
     // Remove beat from users' libraries
-    for (const user of users) {
+    for (let user of users) {
       if (user.library && user.library.includes(beat.id)) {
         user.library = user.library.filter(id => id !== beat.id);
       }
@@ -270,31 +270,32 @@ app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
     }
     
     // Delete associated comments
-    const remainingComments = comments.filter(c => c.beatId !== beat.id);
+    comments = comments.filter(c => c.beatId !== beat.id);
     
     // Delete associated votes for versions
     const versionIds = beat.versions.map(v => v.id);
-    const remainingVotes = votes.filter(v => !versionIds.includes(v.recordingId));
+    votes = votes.filter(v => !versionIds.includes(v.recordingId));
     
     // Remove the beat
     beats.splice(beatIndex, 1);
     
     writeData('beats.json', beats);
     writeData('users.json', users);
-    writeData('comments.json', remainingComments);
-    writeData('votes.json', remainingVotes);
+    writeData('comments.json', comments);
+    writeData('votes.json', votes);
     
-    res.json({ message: 'Beat deleted successfully' });
+    res.json({ success: true, message: 'Beat deleted successfully' });
   } catch (error) {
+    console.error('Delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.delete('/api/recordings/:recordingId', authenticate, async (req, res) => {
   try {
-    const beats = readData('beats.json');
-    const users = readData('users.json');
-    const votes = readData('votes.json');
+    let beats = readData('beats.json');
+    let users = readData('users.json');
+    let votes = readData('votes.json');
     
     let foundBeat = null;
     let versionIndex = -1;
@@ -330,17 +331,18 @@ app.delete('/api/recordings/:recordingId', authenticate, async (req, res) => {
     }
     
     // Delete associated votes
-    const remainingVotes = votes.filter(v => v.recordingId !== recording.id);
+    votes = votes.filter(v => v.recordingId !== recording.id);
     
     // Remove the version
     foundBeat.versions.splice(versionIndex, 1);
     
     writeData('beats.json', beats);
     writeData('users.json', users);
-    writeData('votes.json', remainingVotes);
+    writeData('votes.json', votes);
     
-    res.json({ message: 'Recording deleted successfully' });
+    res.json({ success: true, message: 'Recording deleted successfully' });
   } catch (error) {
+    console.error('Delete recording error:', error);
     res.status(500).json({ error: error.message });
   }
 });
