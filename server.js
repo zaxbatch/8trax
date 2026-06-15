@@ -40,7 +40,7 @@ dirs.forEach(dir => {
 
 // Initialize data files
 const initializeDataFiles = () => {
-  const files = ['users.json', 'beats.json', 'votes.json', 'follows.json', 'comments.json', 'messages.json', 'forks.json', 'mixstates.json'];
+  const files = ['users.json', 'beats.json', 'votes.json', 'follows.json', 'comments.json', 'messages.json', 'forks.json'];
   files.forEach(file => {
     const filePath = path.join(__dirname, 'data', file);
     if (!fs.existsSync(filePath)) {
@@ -219,6 +219,132 @@ app.get('/api/library', authenticate, (req, res) => {
   }
 });
 
+// ==================== DELETE ROUTES ====================
+app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
+  try {
+    const beats = readData('beats.json');
+    const users = readData('users.json');
+    const comments = readData('comments.json');
+    const votes = readData('votes.json');
+    
+    const beatIndex = beats.findIndex(b => b.id === req.params.beatId);
+    if (beatIndex === -1) return res.status(404).json({ error: 'Beat not found' });
+    
+    const beat = beats[beatIndex];
+    
+    // Check if user owns this beat
+    if (beat.producerId !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete your own beats' });
+    }
+    
+    // Delete the audio file
+    const filePath = path.join(__dirname, beat.fileUrl);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    // Delete all versions' audio files
+    for (const version of beat.versions) {
+      const versionPath = path.join(__dirname, version.fileUrl);
+      if (fs.existsSync(versionPath)) {
+        fs.unlinkSync(versionPath);
+      }
+    }
+    
+    // Remove beat from users' libraries
+    for (const user of users) {
+      if (user.library && user.library.includes(beat.id)) {
+        user.library = user.library.filter(id => id !== beat.id);
+      }
+    }
+    
+    // Remove beat from user's uploadedBeats
+    const owner = users.find(u => u.id === beat.producerId);
+    if (owner && owner.uploadedBeats) {
+      owner.uploadedBeats = owner.uploadedBeats.filter(id => id !== beat.id);
+    }
+    
+    // Remove from forkedMixes if applicable
+    if (beat.isForkedMix && owner && owner.forkedMixes) {
+      owner.forkedMixes = owner.forkedMixes.filter(id => id !== beat.id);
+    }
+    
+    // Delete associated comments
+    const remainingComments = comments.filter(c => c.beatId !== beat.id);
+    
+    // Delete associated votes for versions
+    const versionIds = beat.versions.map(v => v.id);
+    const remainingVotes = votes.filter(v => !versionIds.includes(v.recordingId));
+    
+    // Remove the beat
+    beats.splice(beatIndex, 1);
+    
+    writeData('beats.json', beats);
+    writeData('users.json', users);
+    writeData('comments.json', remainingComments);
+    writeData('votes.json', remainingVotes);
+    
+    res.json({ message: 'Beat deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/recordings/:recordingId', authenticate, async (req, res) => {
+  try {
+    const beats = readData('beats.json');
+    const users = readData('users.json');
+    const votes = readData('votes.json');
+    
+    let foundBeat = null;
+    let versionIndex = -1;
+    
+    for (const beat of beats) {
+      const idx = beat.versions.findIndex(v => v.id === req.params.recordingId);
+      if (idx !== -1) {
+        foundBeat = beat;
+        versionIndex = idx;
+        break;
+      }
+    }
+    
+    if (!foundBeat) return res.status(404).json({ error: 'Recording not found' });
+    
+    const recording = foundBeat.versions[versionIndex];
+    
+    // Check if user owns this recording
+    if (recording.vocalistId !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete your own recordings' });
+    }
+    
+    // Delete the audio file
+    const filePath = path.join(__dirname, recording.fileUrl);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    // Remove from user's recordings
+    const user = users.find(u => u.id === req.user.id);
+    if (user && user.recordings) {
+      user.recordings = user.recordings.filter(id => id !== recording.id);
+    }
+    
+    // Delete associated votes
+    const remainingVotes = votes.filter(v => v.recordingId !== recording.id);
+    
+    // Remove the version
+    foundBeat.versions.splice(versionIndex, 1);
+    
+    writeData('beats.json', beats);
+    writeData('users.json', users);
+    writeData('votes.json', remainingVotes);
+    
+    res.json({ message: 'Recording deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ===================== COMMENT ROUTES =====================
 app.post('/api/comments/add', authenticate, (req, res) => {
   try {
@@ -316,10 +442,8 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
     const user = users.find(u => u.id === req.user.id);
     const { originalBeatId, mixName, trackData } = req.body;
     
-    // Parse track data from the request
     const tracks = JSON.parse(trackData);
     
-    // Create a new beat entry for this forked mix
     const forkedMix = {
       id: uuidv4(),
       title: mixName || `${user.displayName}'s Mix`,
