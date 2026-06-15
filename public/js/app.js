@@ -484,7 +484,7 @@ async function loadLibrary(type = 'saved') {
             <source src="${CONFIG.API_URL}${beat.fileUrl}">
           </audio>
           <div class="beat-actions">
-            <button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${beat.id}', '${escapeHtml(beat.title)}')">🗑️ Delete Beat</button>
+            <button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${beat.id}')">🗑️ Delete Beat</button>
             <button class="btn-primary" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})">🎙️ Open in Studio</button>
           </div>
         </div>
@@ -506,7 +506,7 @@ async function loadLibrary(type = 'saved') {
           <audio controls onclick="event.stopPropagation()">
             <source src="${CONFIG.API_URL}${rec.fileUrl}">
           </audio>
-          <button class="btn-danger" onclick="event.stopPropagation(); deleteRecording('${rec.id}', '${escapeHtml(rec.title)}')">🗑️ Delete Recording</button>
+          <button class="btn-danger" onclick="event.stopPropagation(); deleteRecording('${rec.id}')">🗑️ Delete Recording</button>
         </div>
       `).join('');
     } else if (type === 'my-forks' && currentUser) {
@@ -527,7 +527,7 @@ async function loadLibrary(type = 'saved') {
             <source src="${CONFIG.API_URL}${mix.fileUrl}">
           </audio>
           <div class="beat-actions">
-            <button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${mix.id}', '${escapeHtml(mix.title)}')">🗑️ Delete Fork</button>
+            <button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${mix.id}')">🗑️ Delete Fork</button>
             <button class="btn-primary" onclick="event.stopPropagation(); openStudio('${mix.id}', '${escapeHtml(mix.title)}', '${CONFIG.API_URL}${mix.fileUrl}')">🎙️ Open in Studio</button>
           </div>
         </div>
@@ -562,8 +562,8 @@ async function removeFromLibrary(beatId) {
 }
 
 // ================== DELETE FUNCTIONS ==================
-async function deleteBeat(beatId, beatTitle) {
-  if (!confirm(`🗑️ Are you sure you want to delete "${beatTitle}"?\n\nThis action cannot be undone and will permanently delete:\n• The beat audio file\n• All vocal recordings on this beat\n• All comments and votes\n• Remove from all users' libraries`)) {
+async function deleteBeat(beatId) {
+  if (!confirm('Are you sure you want to delete this beat? This action cannot be undone.')) {
     return;
   }
   
@@ -584,7 +584,7 @@ async function deleteBeat(beatId, beatTitle) {
     }
     
     hideProgress();
-    showToast('✅ Beat deleted successfully!', 'success');
+    showToast('Beat deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-beats';
     loadLibrary(activeTab);
@@ -598,8 +598,8 @@ async function deleteBeat(beatId, beatTitle) {
   }
 }
 
-async function deleteRecording(recordingId, recordingTitle) {
-  if (!confirm(`🗑️ Are you sure you want to delete "${recordingTitle}"?\n\nThis action cannot be undone and will permanently delete your vocal recording and all votes on it.`)) {
+async function deleteRecording(recordingId) {
+  if (!confirm('Are you sure you want to delete this recording? This action cannot be undone.')) {
     return;
   }
   
@@ -620,7 +620,7 @@ async function deleteRecording(recordingId, recordingTitle) {
     }
     
     hideProgress();
-    showToast('✅ Recording deleted successfully!', 'success');
+    showToast('Recording deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-recordings';
     loadLibrary(activeTab);
@@ -1568,7 +1568,7 @@ async function viewBeat(beatId) {
             <button onclick="addToLibrary('${beat.id}')" class="btn-secondary">📚 Save to Library</button>
             <button onclick="openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})" class="btn-primary">🎙️ Open in Studio</button>
             <button onclick="showComments('${beatId}')" class="btn-secondary">💬 Comments (${comments.length})</button>
-            ${isOwner ? `<button onclick="deleteBeat('${beat.id}', '${escapeHtml(beat.title)}')" class="btn-danger">🗑️ Delete Beat</button>` : ''}
+            ${isOwner ? `<button onclick="deleteBeat('${beat.id}')" class="btn-danger">🗑️ Delete Beat</button>` : ''}
           ` : '<p class="login-prompt">🔐 Please login to interact with this beat</p>'}
         </div>
         
@@ -1601,7 +1601,7 @@ async function viewBeat(beatId) {
                     </div>
                   ` : ''}
                   ${currentUser && currentUser.id === v.vocalistId ? `
-                    <button onclick="deleteRecording('${v.id}', '${escapeHtml(v.title)}')" class="btn-danger delete-recording-btn">🗑️ Delete Recording</button>
+                    <button onclick="deleteRecording('${v.id}')" class="btn-danger delete-recording-btn">🗑️ Delete Recording</button>
                   ` : ''}
                 </div>
               </div>
@@ -1723,7 +1723,7 @@ async function viewProfile(username) {
             <audio controls onclick="event.stopPropagation()">
               <source src="${CONFIG.API_URL}${b.fileUrl}">
             </audio>
-            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${b.id}', '${escapeHtml(b.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Beat</button>` : ''}
+            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${b.id}')" style="margin-top:8px; width:100%">🗑️ Delete Beat</button>` : ''}
           </div>
         `).join('') || '<p class="empty-state">No beats yet</p>'}
       </div>
@@ -1735,7 +1735,7 @@ async function viewProfile(username) {
             <audio controls onclick="event.stopPropagation()">
               <source src="${CONFIG.API_URL}${f.fileUrl}">
             </audio>
-            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${f.id}', '${escapeHtml(f.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Fork</button>` : ''}
+            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteBeat('${f.id}')" style="margin-top:8px; width:100%">🗑️ Delete Fork</button>` : ''}
           </div>
         `).join('') || '<p class="empty-state">No forks yet</p>'}
       </div>
@@ -1748,7 +1748,7 @@ async function viewProfile(username) {
             <audio controls onclick="event.stopPropagation()">
               <source src="${CONFIG.API_URL}${r.fileUrl}">
             </audio>
-            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteRecording('${r.id}', '${escapeHtml(r.title)}')" style="margin-top:8px; width:100%">🗑️ Delete Recording</button>` : ''}
+            ${isOwnProfile ? `<button class="btn-danger" onclick="event.stopPropagation(); deleteRecording('${r.id}')" style="margin-top:8px; width:100%">🗑️ Delete Recording</button>` : ''}
           </div>
         `).join('') || '<p class="empty-state">No recordings yet</p>'}
       </div>
