@@ -464,6 +464,7 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
       downloads: 0,
       versions: [],
       isForkedMix: true,
+      isFork: true,
       forkedTracks: tracks.map(t => ({
         name: t.name,
         volume: t.volume,
@@ -476,8 +477,7 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
     
     if (!user.forkedMixes) user.forkedMixes = [];
     user.forkedMixes.push(forkedMix.id);
-    if (!user.uploadedBeats) user.uploadedBeats = [];
-    user.uploadedBeats.push(forkedMix.id);
+    // Don't add to uploadedBeats - forks are separate
     writeData('users.json', users);
     
     res.json(forkedMix);
@@ -508,7 +508,9 @@ app.post('/api/beats', authenticate, upload.single('beat'), async (req, res) => 
       createdAt: new Date().toISOString(),
       plays: 0,
       downloads: 0,
-      versions: []
+      versions: [],
+      isForkedMix: false,
+      isFork: false
     };
     beats.push(newBeat);
     writeData('beats.json', beats);
@@ -785,7 +787,7 @@ app.get('/api/users/:username', (req, res) => {
     const beats = readData('beats.json');
     const user = users.find(u => u.username === req.params.username);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const userBeats = beats.filter(b => b.producerId === user.id);
+    const userBeats = beats.filter(b => b.producerId === user.id && !b.isForkedMix);
     const userForkedMixes = beats.filter(b => b.isForkedMix && b.producerId === user.id);
     const userRecordings = beats.flatMap(b => b.versions.filter(v => v.vocalistId === user.id));
     const { password, ...userWithoutPassword } = user;

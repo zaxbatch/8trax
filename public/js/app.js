@@ -358,7 +358,7 @@ async function discoverMusic() {
     
     container.innerHTML = beats.map(beat => `
       <div class="beat-card" onclick="viewBeat('${beat.id}')">
-        <div class="beat-title">${escapeHtml(beat.title)}</div>
+        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''}</div>
         <div class="beat-info">by ${escapeHtml(beat.producerName)} • ${beat.genre} • ${beat.bpm} BPM</div>
         <div class="beat-stats">👂 ${beat.plays} • ⬇️ ${beat.downloads}</div>
         <div class="beat-tags">${beat.tags?.map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('') || ''}</div>
@@ -392,7 +392,7 @@ async function loadTrending() {
         <div class="feed-header">
           <div class="feed-avatar">${(item.producerName?.[0] || 'U').toUpperCase()}</div>
           <div class="feed-username">${escapeHtml(item.producerName || item.vocalistName)}</div>
-          <div class="feed-time">🔥 ${item.popularity}热度</div>
+          <div class="feed-time">🔥 ${item.popularity}</div>
         </div>
         <div class="beat-title">${escapeHtml(item.title)}</div>
         <audio controls onclick="event.stopPropagation()">
@@ -428,6 +428,7 @@ async function loadLeaderboard() {
         </div>
         <div class="leaderboard-stats">
           <div>🎵 ${user.uploadedBeats}</div>
+          <div>🍴 ${user.forkedMixes}</div>
           <div>🎤 ${user.recordings}</div>
         </div>
       </div>
@@ -522,7 +523,7 @@ async function loadLibrary(type = 'saved') {
       container.innerHTML = profile.forkedMixes.map(mix => `
         <div class="beat-card" onclick="viewBeat('${mix.id}')">
           <div class="beat-title">${escapeHtml(mix.title)} <span class="fork-badge">🍴 Fork</span></div>
-          <div class="beat-info">by ${escapeHtml(mix.producerName)}</div>
+          <div class="beat-info">by ${escapeHtml(mix.producerName)} • Created ${new Date(mix.createdAt).toLocaleDateString()}</div>
           <audio controls onclick="event.stopPropagation()">
             <source src="${CONFIG.API_URL}${mix.fileUrl}">
           </audio>
@@ -563,11 +564,11 @@ async function removeFromLibrary(beatId) {
 
 // ================== DELETE FUNCTIONS ==================
 async function deleteBeat(beatId) {
-  if (!confirm('Are you sure you want to delete this beat? This action cannot be undone.')) {
+  if (!confirm('🗑️ Are you sure you want to delete this item?\n\nThis action cannot be undone!')) {
     return;
   }
   
-  showProgress('Deleting beat...');
+  showProgress('Deleting...');
   try {
     const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
     const response = await fetch(`${CONFIG.API_URL}/api/beats/${beatId}`, {
@@ -579,12 +580,10 @@ async function deleteBeat(beatId) {
     });
     
     const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Delete failed');
-    }
+    if (!response.ok) throw new Error(data.error || 'Delete failed');
     
     hideProgress();
-    showToast('Beat deleted successfully!', 'success');
+    showToast('✅ Deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-beats';
     loadLibrary(activeTab);
@@ -599,7 +598,7 @@ async function deleteBeat(beatId) {
 }
 
 async function deleteRecording(recordingId) {
-  if (!confirm('Are you sure you want to delete this recording? This action cannot be undone.')) {
+  if (!confirm('🗑️ Are you sure you want to delete this recording?\n\nThis action cannot be undone!')) {
     return;
   }
   
@@ -615,12 +614,10 @@ async function deleteRecording(recordingId) {
     });
     
     const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Delete failed');
-    }
+    if (!response.ok) throw new Error(data.error || 'Delete failed');
     
     hideProgress();
-    showToast('Recording deleted successfully!', 'success');
+    showToast('✅ Recording deleted successfully!', 'success');
     
     const activeTab = document.querySelector('.lib-tab.active')?.dataset.lib || 'my-recordings';
     loadLibrary(activeTab);
@@ -837,7 +834,7 @@ async function loadBeatsForStudio() {
     
     container.innerHTML = beats.map(beat => `
       <div class="beat-card">
-        <div class="beat-title">${escapeHtml(beat.title)}</div>
+        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''}</div>
         <div class="beat-info">by ${escapeHtml(beat.producerName)}</div>
         <div class="beat-info">${beat.genre} • ${beat.bpm} BPM</div>
         <audio controls onclick="event.stopPropagation()">
