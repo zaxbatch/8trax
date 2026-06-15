@@ -338,6 +338,7 @@ audio {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .feed-avatar {
@@ -598,6 +599,20 @@ audio {
   font-size: 18px;
   color: white;
   font-weight: 500;
+}
+
+/* Studio Action Buttons */
+.studio-action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.studio-action-buttons button {
+  flex: 1;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Track Container */
@@ -905,6 +920,113 @@ audio {
   cursor: pointer;
   padding: 0 8px;
   color: #6b7280;
+}
+
+/* Enhanced Auth Modals */
+.modal-auth {
+  max-width: 420px;
+  background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
+  border-radius: 32px;
+  overflow: hidden;
+}
+
+.auth-modal-header {
+  text-align: center;
+  padding: 32px 24px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  position: relative;
+}
+
+.auth-logo {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.auth-modal-header h2 {
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.auth-modal-header p {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.auth-modal-header .modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: white;
+  opacity: 0.8;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-modal-header .modal-close:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.3);
+}
+
+.auth-modal-header .modal-close:active {
+  transform: scale(0.95);
+}
+
+.auth-input-group {
+  padding: 8px 24px;
+}
+
+.auth-input-group input,
+.auth-input-group textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s;
+  background: white;
+}
+
+.auth-input-group input:focus,
+.auth-input-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.auth-submit {
+  margin: 16px 24px 20px;
+  width: calc(100% - 48px);
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-footer {
+  text-align: center;
+  padding: 0 24px 32px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.auth-footer a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
 }
 
 /* =============== COMMENTS =============== */
@@ -1465,5 +1587,25 @@ audio {
   .timer-display {
     font-size: 11px;
     min-width: 120px;
+  }
+  
+  .modal-auth {
+    margin: 16px;
+    max-width: calc(100% - 32px);
+  }
+  
+  .auth-modal-header h2 {
+    font-size: 24px;
+  }
+  
+  .auth-input-group input,
+  .auth-input-group textarea {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  
+  .studio-action-buttons {
+    flex-direction: column;
+    gap: 8px;
   }
 }

@@ -310,7 +310,6 @@ app.post('/api/beats/:beatId/fork', authenticate, async (req, res) => {
   try {
     const beats = readData('beats.json');
     const users = readData('users.json');
-    const usersData = readData('users.json');
     const originalBeat = beats.find(b => b.id === req.params.beatId);
     
     if (!originalBeat) return res.status(404).json({ error: 'Beat not found' });
@@ -354,7 +353,7 @@ app.post('/api/beats/:beatId/fork', authenticate, async (req, res) => {
     
     if (!user.uploadedBeats) user.uploadedBeats = [];
     user.uploadedBeats.push(forkedBeat.id);
-    writeData('users.json', usersData);
+    writeData('users.json', users);
     
     res.json(forkedBeat);
   } catch (error) {

@@ -52,7 +52,7 @@ class API {
   }
   
   async request(endpoint, options = {}) {
-    const { method = 'GET', body = null, isFormData = false, includeAuth = true, onProgress = null } = options;
+    const { method = 'GET', body = null, isFormData = false, includeAuth = true } = options;
     const config = { method, headers: this.getHeaders(includeAuth, isFormData) };
     if (body) config.body = isFormData ? body : JSON.stringify(body);
     
@@ -783,6 +783,7 @@ async function openStudio(beatId, beatTitle, beatFileUrl) {
   studioState.isOpen = true;
   studioState.currentBeatId = beatId;
   studioState.currentBeatTitle = beatTitle;
+  studioState.currentBeatUrl = beatFileUrl;
   studioState.audioContext = new (window.AudioContext || window.webkitAudioContext());
   
   try {
@@ -911,23 +912,65 @@ async function uploadTrackFile(trackId, file) {
   }
 }
 
+async function forkCurrentBeat() {
+  if (!currentUser) {
+    showToast('Please login to fork', 'error');
+    return;
+  }
+  
+  if (!studioState.currentBeatId) {
+    showToast('No beat loaded in studio', 'error');
+    return;
+  }
+  
+  showProgress('Forking beat to your library...');
+  try {
+    const forkedBeat = await api.forkBeat(studioState.currentBeatId);
+    hideProgress();
+    showToast('Beat forked! It\'s now in your library. The beat is now Track 1 of your version.', 'success');
+    
+    studioState.currentBeatId = forkedBeat.id;
+    studioState.currentBeatTitle = forkedBeat.title;
+    studioState.currentBeatUrl = forkedBeat.fileUrl;
+    
+    const response = await fetch(forkedBeat.fileUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await studioState.audioContext.decodeAudioData(arrayBuffer);
+    studioState.beatBuffer = audioBuffer;
+    studioState.tracks[0].audioBuffer = audioBuffer;
+    studioState.tracks[0].isLoaded = true;
+    studioState.tracks[0].name = `🎵 ${forkedBeat.title}`;
+    
+    renderStudioInterface();
+    showToast('Fork loaded! This beat is now yours to modify.', 'success');
+  } catch (error) {
+    hideProgress();
+    showToast(error.message, 'error');
+  }
+}
+
 async function downloadMixdown() {
   if (!studioState.isOpen || !studioState.currentBeatId) {
     showToast('Open a beat in the studio first', 'error');
     return;
   }
   
-  // Merge all tracks into one audio buffer
   const { audioContext, tracks } = studioState;
   const sampleRate = audioContext.sampleRate;
-  const maxLength = Math.max(...tracks.filter(t => t.audioBuffer).map(t => t.audioBuffer.length));
+  let maxLength = 0;
   
-  if (maxLength === -Infinity) {
+  for (const track of tracks) {
+    if (track.audioBuffer && track.audioBuffer.length > maxLength) {
+      maxLength = track.audioBuffer.length;
+    }
+  }
+  
+  if (maxLength === 0) {
     showToast('No audio tracks to mix down', 'error');
     return;
   }
   
-  showProgress('Mixing down tracks...', 0);
+  showProgress('Mixing down tracks...');
   
   try {
     const mixedBuffer = audioContext.createBuffer(2, maxLength, sampleRate);
@@ -941,7 +984,8 @@ async function downloadMixdown() {
           const hasSolo = tracks.some(t => t.solo);
           if (hasSolo && !track.solo) continue;
           
-          const inputData = track.audioBuffer.getChannelData(Math.min(channel, track.audioBuffer.numberOfChannels - 1));
+          const inputChannel = Math.min(channel, track.audioBuffer.numberOfChannels - 1);
+          const inputData = track.audioBuffer.getChannelData(inputChannel);
           const gain = track.volume;
           
           for (let j = 0; j < maxLength && j < inputData.length; j++) {
@@ -951,20 +995,18 @@ async function downloadMixdown() {
       }
     }
     
-    // Convert to WAV and upload
     const wavBlob = audioBufferToWav(mixedBuffer);
     const formData = new FormData();
     formData.append('mix', wavBlob, 'mixdown.wav');
     
     updateProgress(50, 'Uploading mixdown...');
-    const result = await api.uploadMixdown(studioState.currentBeatId, formData, (percent) => {
+    await api.uploadMixdown(studioState.currentBeatId, formData, (percent) => {
       updateProgress(50 + percent * 0.5, `Uploading: ${Math.round(percent)}%`);
     });
     
     hideProgress();
     showToast('Mixdown saved successfully!', 'success');
     
-    // Download the mixed file
     const url = URL.createObjectURL(wavBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -1632,7 +1674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadLeaderboard();
   await loadBeatsForStudio();
   
-  // Navigation
   document.querySelectorAll('.nav-item').forEach(nav => {
     nav.addEventListener('click', () => {
       const page = nav.dataset.page;
@@ -1647,7 +1688,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
-  // Library tabs
   document.querySelectorAll('.lib-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
@@ -1656,44 +1696,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
-  // Search
   document.getElementById('searchBtn')?.addEventListener('click', () => showModal('searchModal'));
   document.getElementById('searchInput')?.addEventListener('input', performSearch);
   
-  // Messages
   document.getElementById('messagesBtn')?.addEventListener('click', () => {
     if (currentUser) loadMessages();
     else showToast('Login to view messages', 'error');
   });
   
-  // Chat user search
   document.getElementById('chatUserSearch')?.addEventListener('input', searchUsersForChat);
   document.getElementById('sendMessageBtn')?.addEventListener('click', sendMessage);
   document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
   
-  // Mixdown button
-  const mixdownBtn = document.createElement('button');
-  mixdownBtn.className = 'btn-primary';
-  mixdownBtn.innerHTML = '💾 Download Mixdown';
-  mixdownBtn.onclick = downloadMixdown;
-  mixdownBtn.style.marginTop = '16px';
-  mixdownBtn.style.width = '100%';
-  
-  const studioContent = document.getElementById('studioContent');
-  if (studioContent) {
-    const existingBtn = studioContent.querySelector('.mixdown-btn');
-    if (!existingBtn) {
-      mixdownBtn.classList.add('mixdown-btn');
-      studioContent.appendChild(mixdownBtn);
-    }
-  }
-  
   initMetronome();
 });
 
-// Make functions global
+// Make all functions global
 window.register = register;
 window.login = login;
 window.logout = logout;
@@ -1712,6 +1732,7 @@ window.showPage = showPage;
 window.addToLibrary = addToLibrary;
 window.removeFromLibrary = removeFromLibrary;
 window.forkBeat = forkBeat;
+window.forkCurrentBeat = forkCurrentBeat;
 window.openStudio = openStudio;
 window.startRecordingToTrack = startRecordingToTrack;
 window.stopRecordingToTrack = stopRecordingToTrack;
