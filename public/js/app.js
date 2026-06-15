@@ -21,6 +21,8 @@ let studioState = {
   currentBeatId: null,
   currentBeatTitle: null,
   currentBeatUrl: null,
+  currentBeatGenre: null,
+  currentBeatBPM: null,
   beatBuffer: null,
   tracks: [],
   isPlaying: false,
@@ -113,8 +115,7 @@ class API {
   async searchUsers(query) { return this.request(`/api/users/search?q=${encodeURIComponent(query)}`); }
   async getUserProfile(username) { return this.request(`/api/users/${username}`); }
   async followUser(userId) { return this.request(`/api/users/${userId}/follow`, { method: 'POST' }); }
-  async forkBeat(beatId) { return this.request(`/api/beats/${beatId}/fork`, { method: 'POST' }); }
-  async uploadMixdown(beatId, formData, onProgress) { return this.uploadWithProgress(`/api/beats/${beatId}/mixdown`, formData, onProgress); }
+  async forkMix(formData, onProgress) { return this.uploadWithProgress('/api/mix/fork', formData, onProgress); }
 }
 
 const api = new API();
@@ -366,8 +367,7 @@ async function discoverMusic() {
         </audio>
         <div class="beat-actions">
           <button class="btn-secondary" onclick="event.stopPropagation(); addToLibrary('${beat.id}')">📚 Save</button>
-          <button class="btn-primary" onclick="event.stopPropagation(); forkBeat('${beat.id}')">🍴 Fork</button>
-          <button class="btn-primary" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}')">🎙️ Record</button>
+          <button class="btn-primary" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})">🎙️ Open in Studio</button>
         </div>
       </div>
     `).join('');
@@ -504,6 +504,26 @@ async function loadLibrary(type = 'saved') {
           </audio>
         </div>
       `).join('');
+    } else if (type === 'my-forks' && currentUser) {
+      const profile = await api.getUserProfile(currentUser.username);
+      const container = document.getElementById('libraryContent');
+      if (!container) return;
+      
+      if (!profile.forkedMixes?.length) {
+        container.innerHTML = '<div class="empty-state">You haven\'t forked any mixes yet</div>';
+        return;
+      }
+      
+      container.innerHTML = profile.forkedMixes.map(mix => `
+        <div class="beat-card" onclick="viewBeat('${mix.id}')">
+          <div class="beat-title">${escapeHtml(mix.title)} <span class="fork-badge">🍴 Fork</span></div>
+          <div class="beat-info">by ${escapeHtml(mix.producerName)}</div>
+          <audio controls onclick="event.stopPropagation()">
+            <source src="${CONFIG.API_URL}${mix.fileUrl}">
+          </audio>
+          <button class="btn-primary" onclick="event.stopPropagation(); openStudio('${mix.id}', '${escapeHtml(mix.title)}', '${CONFIG.API_URL}${mix.fileUrl}')">Open in Studio</button>
+        </div>
+      `).join('');
     }
   } catch (error) {
     console.error(error);
@@ -529,25 +549,6 @@ async function removeFromLibrary(beatId) {
     showToast('Removed from library', 'info');
     loadLibrary('saved');
   } catch (error) {
-    showToast(error.message, 'error');
-  }
-}
-
-async function forkBeat(beatId) {
-  if (!currentUser) {
-    showToast('Please login to fork', 'error');
-    return;
-  }
-  
-  showProgress('Forking beat...');
-  try {
-    const forkedBeat = await api.forkBeat(beatId);
-    hideProgress();
-    showToast('Beat forked! It\'s now in your library', 'success');
-    viewBeat(forkedBeat.id);
-    discoverMusic();
-  } catch (error) {
-    hideProgress();
     showToast(error.message, 'error');
   }
 }
@@ -761,7 +762,7 @@ async function loadBeatsForStudio() {
         <audio controls onclick="event.stopPropagation()">
           <source src="${CONFIG.API_URL}${beat.fileUrl}">
         </audio>
-        <button class="btn-primary" style="margin-top:10px; width:100%" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}')">
+        <button class="btn-primary" style="margin-top:10px; width:100%" onclick="event.stopPropagation(); openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})">
           Open in Studio
         </button>
       </div>
@@ -771,7 +772,7 @@ async function loadBeatsForStudio() {
   }
 }
 
-async function openStudio(beatId, beatTitle, beatFileUrl) {
+async function openStudio(beatId, beatTitle, beatFileUrl, beatGenre = 'Other', beatBPM = 120) {
   if (!currentUser) {
     showToast('Please login', 'error');
     return;
@@ -784,6 +785,8 @@ async function openStudio(beatId, beatTitle, beatFileUrl) {
   studioState.currentBeatId = beatId;
   studioState.currentBeatTitle = beatTitle;
   studioState.currentBeatUrl = beatFileUrl;
+  studioState.currentBeatGenre = beatGenre;
+  studioState.currentBeatBPM = beatBPM;
   studioState.audioContext = new (window.AudioContext || window.webkitAudioContext());
   
   try {
@@ -797,10 +800,10 @@ async function openStudio(beatId, beatTitle, beatFileUrl) {
     renderStudioInterface();
     document.querySelector('.studio-selector').style.display = 'none';
     document.getElementById('multiTrackStudio').style.display = 'block';
-    showToast('Beat loaded! Ready to record.', 'success');
+    showToast('Mix loaded! Ready to record.', 'success');
     showPage('studio');
   } catch (error) {
-    showToast('Error loading beat: ' + error.message, 'error');
+    showToast('Error loading mix: ' + error.message, 'error');
   }
 }
 
@@ -912,37 +915,91 @@ async function uploadTrackFile(trackId, file) {
   }
 }
 
-async function forkCurrentBeat() {
+async function forkCurrentMix() {
   if (!currentUser) {
     showToast('Please login to fork', 'error');
     return;
   }
   
-  if (!studioState.currentBeatId) {
-    showToast('No beat loaded in studio', 'error');
+  if (!studioState.isOpen) {
+    showToast('No mix loaded in studio', 'error');
     return;
   }
   
-  showProgress('Forking beat to your library...');
+  const mixName = prompt('Name your forked mix:', `${currentUser.displayName}'s version of ${studioState.currentBeatTitle}`);
+  if (!mixName) return;
+  
+  showProgress('Creating your forked mix...');
+  
   try {
-    const forkedBeat = await api.forkBeat(studioState.currentBeatId);
+    const { audioContext, tracks } = studioState;
+    const sampleRate = audioContext.sampleRate;
+    let maxLength = 0;
+    
+    for (const track of tracks) {
+      if (track.audioBuffer && track.audioBuffer.length > maxLength) {
+        maxLength = track.audioBuffer.length;
+      }
+    }
+    
+    if (maxLength === 0) {
+      hideProgress();
+      showToast('No audio tracks to fork', 'error');
+      return;
+    }
+    
+    const mixedBuffer = audioContext.createBuffer(2, maxLength, sampleRate);
+    
+    for (let channel = 0; channel < 2; channel++) {
+      const outputData = mixedBuffer.getChannelData(channel);
+      
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        if (track.audioBuffer && !track.muted) {
+          const hasSolo = tracks.some(t => t.solo);
+          if (hasSolo && !track.solo) continue;
+          
+          const inputChannel = Math.min(channel, track.audioBuffer.numberOfChannels - 1);
+          const inputData = track.audioBuffer.getChannelData(inputChannel);
+          const gain = track.volume;
+          
+          for (let j = 0; j < maxLength && j < inputData.length; j++) {
+            outputData[j] += inputData[j] * gain;
+          }
+        }
+      }
+    }
+    
+    const wavBlob = audioBufferToWav(mixedBuffer);
+    const formData = new FormData();
+    formData.append('fork', wavBlob, 'forked_mix.wav');
+    
+    const trackData = tracks.map(t => ({
+      name: t.name,
+      volume: t.volume,
+      muted: t.muted,
+      wasMuted: t.muted,
+      genre: studioState.currentBeatGenre || 'Other',
+      bpm: studioState.currentBeatBPM || 120
+    }));
+    
+    formData.append('originalBeatId', studioState.currentBeatId);
+    formData.append('mixName', mixName);
+    formData.append('trackData', JSON.stringify(trackData));
+    
+    updateProgress(30, 'Uploading your forked mix...');
+    
+    const forkedMix = await api.forkMix(formData, (percent) => {
+      updateProgress(30 + percent * 0.6, `Uploading: ${Math.round(percent)}%`);
+    });
+    
     hideProgress();
-    showToast('Beat forked! It\'s now in your library. The beat is now Track 1 of your version.', 'success');
+    showToast('Mix forked successfully! It\'s now in your library.', 'success');
     
-    studioState.currentBeatId = forkedBeat.id;
-    studioState.currentBeatTitle = forkedBeat.title;
-    studioState.currentBeatUrl = forkedBeat.fileUrl;
+    if (confirm('Your mix has been saved! Would you like to open it in the studio?')) {
+      await openStudio(forkedMix.id, forkedMix.title, `${CONFIG.API_URL}${forkedMix.fileUrl}`, forkedMix.genre, forkedMix.bpm);
+    }
     
-    const response = await fetch(forkedBeat.fileUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await studioState.audioContext.decodeAudioData(arrayBuffer);
-    studioState.beatBuffer = audioBuffer;
-    studioState.tracks[0].audioBuffer = audioBuffer;
-    studioState.tracks[0].isLoaded = true;
-    studioState.tracks[0].name = `🎵 ${forkedBeat.title}`;
-    
-    renderStudioInterface();
-    showToast('Fork loaded! This beat is now yours to modify.', 'success');
   } catch (error) {
     hideProgress();
     showToast(error.message, 'error');
@@ -950,8 +1007,8 @@ async function forkCurrentBeat() {
 }
 
 async function downloadMixdown() {
-  if (!studioState.isOpen || !studioState.currentBeatId) {
-    showToast('Open a beat in the studio first', 'error');
+  if (!studioState.isOpen) {
+    showToast('Open a mix in the studio first', 'error');
     return;
   }
   
@@ -996,23 +1053,15 @@ async function downloadMixdown() {
     }
     
     const wavBlob = audioBufferToWav(mixedBuffer);
-    const formData = new FormData();
-    formData.append('mix', wavBlob, 'mixdown.wav');
-    
-    updateProgress(50, 'Uploading mixdown...');
-    await api.uploadMixdown(studioState.currentBeatId, formData, (percent) => {
-      updateProgress(50 + percent * 0.5, `Uploading: ${Math.round(percent)}%`);
-    });
-    
-    hideProgress();
-    showToast('Mixdown saved successfully!', 'success');
-    
     const url = URL.createObjectURL(wavBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${studioState.currentBeatTitle}_mixdown.wav`;
+    a.download = `${studioState.currentBeatTitle || 'mix'}_mixdown.wav`;
     a.click();
     URL.revokeObjectURL(url);
+    
+    hideProgress();
+    showToast('Mixdown downloaded!', 'success');
     
   } catch (error) {
     hideProgress();
@@ -1385,8 +1434,7 @@ async function viewBeat(beatId) {
         ${currentUser ? `
           <button onclick="downloadBeat('${beat.id}')" class="btn-primary">⬇️ Download</button>
           <button onclick="addToLibrary('${beat.id}')" class="btn-secondary">📚 Save</button>
-          <button onclick="forkBeat('${beat.id}')" class="btn-secondary">🍴 Fork</button>
-          <button onclick="openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}')" class="btn-primary">🎙️ Record</button>
+          <button onclick="openStudio('${beat.id}', '${escapeHtml(beat.title)}', '${CONFIG.API_URL}${beat.fileUrl}', '${beat.genre}', ${beat.bpm})" class="btn-primary">🎙️ Open in Studio</button>
           <button onclick="showComments('${beatId}')" class="btn-secondary">💬 Comments (${comments.length})</button>
         ` : '<p>Login to interact</p>'}
       </div>
@@ -1498,6 +1546,10 @@ async function viewProfile(username) {
             <div class="stat-label">Beats</div>
           </div>
           <div class="stat">
+            <div class="stat-number">${user.forkedMixesCount || 0}</div>
+            <div class="stat-label">Forks</div>
+          </div>
+          <div class="stat">
             <div class="stat-number">${user.recordingsCount || 0}</div>
             <div class="stat-label">Recordings</div>
           </div>
@@ -1519,6 +1571,17 @@ async function viewProfile(username) {
             </audio>
           </div>
         `).join('') || '<p>No beats yet</p>'}
+      </div>
+      <h3>My Forks</h3>
+      <div class="beats-grid">
+        ${user.forkedMixes?.map(f => `
+          <div class="beat-card" onclick="viewBeat('${f.id}')">
+            <div class="beat-title">${escapeHtml(f.title)} <span class="fork-badge">🍴</span></div>
+            <audio controls onclick="event.stopPropagation()">
+              <source src="${CONFIG.API_URL}${f.fileUrl}">
+            </audio>
+          </div>
+        `).join('') || '<p>No forks yet</p>'}
       </div>
       <h3>My Recordings</h3>
       <div class="beats-grid">
@@ -1705,7 +1768,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   document.getElementById('chatUserSearch')?.addEventListener('input', searchUsersForChat);
-  document.getElementById('sendMessageBtn')?.addEventListener('click', sendMessage);
   document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
@@ -1731,8 +1793,6 @@ window.closeModal = closeModal;
 window.showPage = showPage;
 window.addToLibrary = addToLibrary;
 window.removeFromLibrary = removeFromLibrary;
-window.forkBeat = forkBeat;
-window.forkCurrentBeat = forkCurrentBeat;
 window.openStudio = openStudio;
 window.startRecordingToTrack = startRecordingToTrack;
 window.stopRecordingToTrack = stopRecordingToTrack;
@@ -1761,3 +1821,4 @@ window.openChat = openChat;
 window.sendMessage = sendMessage;
 window.closeChat = closeChat;
 window.downloadMixdown = downloadMixdown;
+window.forkCurrentMix = forkCurrentMix;

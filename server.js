@@ -30,7 +30,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure directories exist
-const dirs = ['uploads/beats', 'uploads/vocals', 'uploads/mixes', 'data'];
+const dirs = ['uploads/beats', 'uploads/vocals', 'uploads/mixes', 'uploads/forks', 'data'];
 dirs.forEach(dir => {
   const dirPath = path.join(__dirname, dir);
   if (!fs.existsSync(dirPath)) {
@@ -40,7 +40,7 @@ dirs.forEach(dir => {
 
 // Initialize data files
 const initializeDataFiles = () => {
-  const files = ['users.json', 'beats.json', 'votes.json', 'follows.json', 'comments.json', 'messages.json', 'forks.json'];
+  const files = ['users.json', 'beats.json', 'votes.json', 'follows.json', 'comments.json', 'messages.json', 'forks.json', 'mixstates.json'];
   files.forEach(file => {
     const filePath = path.join(__dirname, 'data', file);
     if (!fs.existsSync(filePath)) {
@@ -71,6 +71,8 @@ const storage = multer.diskStorage({
       cb(null, path.join(__dirname, 'uploads/vocals'));
     } else if (file.fieldname === 'mix') {
       cb(null, path.join(__dirname, 'uploads/mixes'));
+    } else if (file.fieldname === 'fork') {
+      cb(null, path.join(__dirname, 'uploads/forks'));
     } else {
       cb(null, path.join(__dirname, 'uploads/vocals'));
     }
@@ -139,6 +141,7 @@ app.post('/api/auth/register', async (req, res) => {
       library: [],
       followers: [],
       following: [],
+      forkedMixes: [],
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=667eea&color=fff`
     };
     users.push(newUser);
@@ -305,99 +308,53 @@ app.post('/api/messages/send', authenticate, (req, res) => {
   }
 });
 
-// ==================== FORK & MIXDOWN ROUTES ====================
-app.post('/api/beats/:beatId/fork', authenticate, async (req, res) => {
+// ==================== FORK MIX ROUTE ====================
+app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) => {
   try {
-    const beats = readData('beats.json');
     const users = readData('users.json');
-    const originalBeat = beats.find(b => b.id === req.params.beatId);
-    
-    if (!originalBeat) return res.status(404).json({ error: 'Beat not found' });
-    
+    const beats = readData('beats.json');
     const user = users.find(u => u.id === req.user.id);
-    const forks = readData('forks.json');
+    const { originalBeatId, mixName, trackData } = req.body;
     
-    const forkedBeat = {
+    // Parse track data from the request
+    const tracks = JSON.parse(trackData);
+    
+    // Create a new beat entry for this forked mix
+    const forkedMix = {
       id: uuidv4(),
-      title: `${originalBeat.title} (Fork by ${user.displayName})`,
-      originalBeatId: originalBeat.id,
-      genre: originalBeat.genre,
-      bpm: originalBeat.bpm,
-      description: `Forked from ${originalBeat.producerName}'s beat "${originalBeat.title}"`,
-      tags: [...originalBeat.tags, 'fork'],
+      title: mixName || `${user.displayName}'s Mix`,
+      originalBeatId: originalBeatId,
+      genre: tracks[0]?.genre || 'Other',
+      bpm: tracks[0]?.bpm || 120,
+      description: `Forked mix by ${user.displayName}`,
+      tags: ['fork', 'mix'],
       producerId: req.user.id,
       producerName: user.displayName || user.username,
       producerUsername: user.username,
-      fileUrl: originalBeat.fileUrl,
-      filename: originalBeat.filename,
+      fileUrl: `/uploads/forks/${req.file.filename}`,
+      filename: req.file.filename,
       createdAt: new Date().toISOString(),
       plays: 0,
       downloads: 0,
       versions: [],
-      isFork: true,
-      originalCreatorId: originalBeat.producerId,
-      originalCreatorName: originalBeat.producerName
+      isForkedMix: true,
+      forkedTracks: tracks.map(t => ({
+        name: t.name,
+        volume: t.volume,
+        wasMuted: t.wasMuted
+      }))
     };
     
-    beats.push(forkedBeat);
+    beats.push(forkedMix);
     writeData('beats.json', beats);
     
-    forks.push({
-      id: uuidv4(),
-      forkId: forkedBeat.id,
-      originalId: originalBeat.id,
-      forkedBy: req.user.id,
-      forkedAt: new Date().toISOString()
-    });
-    writeData('forks.json', forks);
-    
+    if (!user.forkedMixes) user.forkedMixes = [];
+    user.forkedMixes.push(forkedMix.id);
     if (!user.uploadedBeats) user.uploadedBeats = [];
-    user.uploadedBeats.push(forkedBeat.id);
+    user.uploadedBeats.push(forkedMix.id);
     writeData('users.json', users);
     
-    res.json(forkedBeat);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/beats/:beatId/mixdown', authenticate, upload.single('mix'), async (req, res) => {
-  try {
-    const beats = readData('beats.json');
-    const users = readData('users.json');
-    const beat = beats.find(b => b.id === req.params.beatId);
-    
-    if (!beat) return res.status(404).json({ error: 'Beat not found' });
-    
-    const user = users.find(u => u.id === req.user.id);
-    
-    const mixdownVersion = {
-      id: uuidv4(),
-      beatId: req.params.beatId,
-      beatTitle: beat.title,
-      vocalistId: req.user.id,
-      vocalistName: user.displayName || user.username,
-      vocalistUsername: user.username,
-      title: `${user.displayName}'s mixdown`,
-      description: `Mixed down version of ${beat.title}`,
-      tags: ['mixdown'],
-      fileUrl: `/uploads/mixes/${req.file.filename}`,
-      filename: req.file.filename,
-      createdAt: new Date().toISOString(),
-      votes: [],
-      rating: 0,
-      plays: 0,
-      isMixdown: true
-    };
-    
-    beat.versions.push(mixdownVersion);
-    writeData('beats.json', beats);
-    
-    if (!user.recordings) user.recordings = [];
-    user.recordings.push(mixdownVersion.id);
-    writeData('users.json', users);
-    
-    res.json(mixdownVersion);
+    res.json(forkedMix);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -609,6 +566,7 @@ app.get('/api/leaderboard', (req, res) => {
       uploadedBeats: user.uploadedBeats?.length || 0,
       recordings: user.recordings?.length || 0,
       followers: user.followers?.length || 0,
+      forkedMixes: user.forkedMixes?.length || 0,
       bio: user.bio || ""
     }));
     res.json(topUsers);
@@ -702,13 +660,16 @@ app.get('/api/users/:username', (req, res) => {
     const user = users.find(u => u.username === req.params.username);
     if (!user) return res.status(404).json({ error: 'User not found' });
     const userBeats = beats.filter(b => b.producerId === user.id);
+    const userForkedMixes = beats.filter(b => b.isForkedMix && b.producerId === user.id);
     const userRecordings = beats.flatMap(b => b.versions.filter(v => v.vocalistId === user.id));
     const { password, ...userWithoutPassword } = user;
     res.json({ 
       ...userWithoutPassword, 
       uploadedBeatsCount: userBeats.length, 
+      forkedMixesCount: userForkedMixes.length,
       recordingsCount: userRecordings.length, 
       uploadedBeats: userBeats, 
+      forkedMixes: userForkedMixes,
       recordings: userRecordings 
     });
   } catch (error) {
