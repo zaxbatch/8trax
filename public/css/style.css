@@ -829,6 +829,7 @@ audio {
   justify-content: center;
   gap: 24px;
   margin: 16px 0;
+  flex-wrap: wrap;
 }
 
 .stat {
@@ -1504,6 +1505,16 @@ audio {
   font-size: 13px;
 }
 
+.fork-badge {
+  display: inline-block;
+  background: #f59e0b;
+  color: white;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
 /* =============== ANIMATIONS =============== */
 @keyframes pulse {
   0% { opacity: 1; transform: scale(1); }
@@ -1607,5 +1618,9 @@ audio {
   .studio-action-buttons {
     flex-direction: column;
     gap: 8px;
+  }
+  
+  .profile-stats {
+    gap: 12px;
   }
 }
