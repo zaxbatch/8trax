@@ -469,6 +469,7 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
       versions: [],
       isForkedMix: true,
       isFork: true,
+      bpmLocked: true,
       forkedTracks: tracks.map(t => ({
         name: t.name,
         volume: t.volume,
@@ -481,7 +482,6 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
     
     if (!user.forkedMixes) user.forkedMixes = [];
     user.forkedMixes.push(forkedMix.id);
-    // Important: Do NOT add to uploadedBeats - forks are separate
     writeData('users.json', users);
     
     res.json(forkedMix);
@@ -514,7 +514,8 @@ app.post('/api/beats', authenticate, upload.single('beat'), async (req, res) => 
       downloads: 0,
       versions: [],
       isForkedMix: false,
-      isFork: false
+      isFork: false,
+      bpmLocked: true
     };
     beats.push(newBeat);
     writeData('beats.json', beats);
@@ -736,7 +737,8 @@ app.get('/api/search', (req, res) => {
         id: beat.id, 
         title: beat.title, 
         producerName: beat.producerName, 
-        genre: beat.genre 
+        genre: beat.genre,
+        bpm: beat.bpm
       }));
       results.push(...matchedBeats);
     }

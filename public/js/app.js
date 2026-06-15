@@ -358,8 +358,8 @@ async function discoverMusic() {
     
     container.innerHTML = beats.map(beat => `
       <div class="beat-card" onclick="viewBeat('${beat.id}')">
-        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''}</div>
-        <div class="beat-info">by ${escapeHtml(beat.producerName)} • ${beat.genre} • ${beat.bpm} BPM</div>
+        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''}<span class="beat-bpm">${beat.bpm} BPM</span></div>
+        <div class="beat-info">by ${escapeHtml(beat.producerName)} • ${beat.genre}</div>
         <div class="beat-stats">👂 ${beat.plays} • ⬇️ ${beat.downloads}</div>
         <div class="beat-tags">${beat.tags?.map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('') || ''}</div>
         <audio controls onclick="event.stopPropagation()">
@@ -394,7 +394,7 @@ async function loadTrending() {
           <div class="feed-username">${escapeHtml(item.producerName || item.vocalistName)}</div>
           <div class="feed-time">🔥 ${item.popularity}</div>
         </div>
-        <div class="beat-title">${escapeHtml(item.title)}</div>
+        <div class="beat-title">${escapeHtml(item.title)} <span class="beat-bpm">${item.bpm} BPM</span></div>
         <audio controls onclick="event.stopPropagation()">
           <source src="${CONFIG.API_URL}${item.fileUrl}">
         </audio>
@@ -459,7 +459,7 @@ async function loadLibrary(type = 'saved') {
       
       container.innerHTML = library.map(beat => `
         <div class="beat-card" onclick="viewBeat('${beat.id}')">
-          <div class="beat-title">${escapeHtml(beat.title)}</div>
+          <div class="beat-title">${escapeHtml(beat.title)} <span class="beat-bpm">${beat.bpm} BPM</span></div>
           <div class="beat-info">by ${escapeHtml(beat.producerName)}</div>
           <audio controls onclick="event.stopPropagation()">
             <source src="${CONFIG.API_URL}${beat.fileUrl}">
@@ -479,8 +479,8 @@ async function loadLibrary(type = 'saved') {
       
       container.innerHTML = profile.uploadedBeats.map(beat => `
         <div class="beat-card" onclick="viewBeat('${beat.id}')">
-          <div class="beat-title">${escapeHtml(beat.title)}</div>
-          <div class="beat-info">${beat.genre} • ${beat.bpm} BPM</div>
+          <div class="beat-title">${escapeHtml(beat.title)} <span class="beat-bpm">${beat.bpm} BPM</span></div>
+          <div class="beat-info">${beat.genre}</div>
           <audio controls onclick="event.stopPropagation()">
             <source src="${CONFIG.API_URL}${beat.fileUrl}">
           </audio>
@@ -522,7 +522,7 @@ async function loadLibrary(type = 'saved') {
       
       container.innerHTML = profile.forkedMixes.map(mix => `
         <div class="beat-card" onclick="viewBeat('${mix.id}')">
-          <div class="beat-title">${escapeHtml(mix.title)} <span class="fork-badge">🍴 Fork</span></div>
+          <div class="beat-title">${escapeHtml(mix.title)} <span class="fork-badge">🍴 Fork</span> <span class="beat-bpm">${mix.bpm} BPM</span></div>
           <div class="beat-info">by ${escapeHtml(mix.producerName)} • Created ${new Date(mix.createdAt).toLocaleDateString()}</div>
           <audio controls onclick="event.stopPropagation()">
             <source src="${CONFIG.API_URL}${mix.fileUrl}">
@@ -812,9 +812,9 @@ async function loadBeatsForStudio() {
     
     container.innerHTML = beats.map(beat => `
       <div class="beat-card">
-        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''}</div>
+        <div class="beat-title">${escapeHtml(beat.title)}${beat.isForkedMix ? ' <span class="fork-badge">🍴 Fork</span>' : ''} <span class="beat-bpm">${beat.bpm} BPM</span></div>
         <div class="beat-info">by ${escapeHtml(beat.producerName)}</div>
-        <div class="beat-info">${beat.genre} • ${beat.bpm} BPM</div>
+        <div class="beat-info">${beat.genre}</div>
         <audio controls onclick="event.stopPropagation()">
           <source src="${CONFIG.API_URL}${beat.fileUrl}">
         </audio>
@@ -845,18 +845,26 @@ async function openStudio(beatId, beatTitle, beatFileUrl, beatGenre = 'Other', b
   studioState.currentBeatBPM = beatBPM;
   studioState.audioContext = new (window.AudioContext || window.webkitAudioContext());
   
+  // Set metronome BPM from the beat (LOCKED)
+  studioState.metronomeBPM = beatBPM;
+  const metronomeBPMInput = document.getElementById('metronomeBPM');
+  if (metronomeBPMInput) {
+    metronomeBPMInput.value = beatBPM;
+    metronomeBPMInput.disabled = true;
+  }
+  
   try {
     const response = await fetch(beatFileUrl);
     const arrayBuffer = await response.arrayBuffer();
     studioState.beatBuffer = await studioState.audioContext.decodeAudioData(arrayBuffer);
     studioState.tracks[0].audioBuffer = studioState.beatBuffer;
     studioState.tracks[0].isLoaded = true;
-    studioState.tracks[0].name = `🎵 ${beatTitle}`;
+    studioState.tracks[0].name = `🎵 ${beatTitle} (${beatBPM} BPM)`;
     
     renderStudioInterface();
     document.querySelector('.studio-selector').style.display = 'none';
     document.getElementById('multiTrackStudio').style.display = 'block';
-    showToast('Mix loaded! Ready to record.', 'success');
+    showToast(`Beat loaded! BPM: ${beatBPM} (locked to track tempo)`, 'success');
     showPage('studio');
   } catch (error) {
     showToast('Error loading mix: ' + error.message, 'error');
@@ -866,6 +874,27 @@ async function openStudio(beatId, beatTitle, beatFileUrl, beatGenre = 'Other', b
 function renderStudioInterface() {
   const container = document.getElementById('trackContainer');
   if (!container) return;
+  
+  // Add BPM lock indicator to studio header
+  const studioHeader = document.querySelector('.multi-track-studio');
+  if (studioHeader && studioState.currentBeatBPM) {
+    let lockIndicator = studioHeader.querySelector('.bpm-lock-indicator');
+    if (!lockIndicator) {
+      const metronomeControls = studioHeader.querySelector('.metronome-controls');
+      if (metronomeControls) {
+        const lockDiv = document.createElement('div');
+        lockDiv.className = 'bpm-lock-indicator';
+        lockDiv.innerHTML = `
+          <span class="lock-icon">🔒</span>
+          <span class="lock-text">BPM Locked: ${studioState.currentBeatBPM}</span>
+        `;
+        metronomeControls.insertBefore(lockDiv, metronomeControls.firstChild);
+      }
+    } else {
+      const lockText = lockIndicator.querySelector('.lock-text');
+      if (lockText) lockText.textContent = `BPM Locked: ${studioState.currentBeatBPM}`;
+    }
+  }
   
   let html = '';
   for (let i = 0; i < 8; i++) {
@@ -1225,6 +1254,16 @@ function toggleCountIn() {
 }
 
 function updateMetronomeBPM() {
+  // BPM is locked to the beat's original tempo
+  if (studioState.currentBeatBPM) {
+    const bpmInput = document.getElementById('metronomeBPM');
+    if (bpmInput) {
+      bpmInput.value = studioState.currentBeatBPM;
+    }
+    showToast('BPM is locked to the original beat tempo', 'info');
+    return;
+  }
+  
   studioState.metronomeBPM = parseInt(document.getElementById('metronomeBPM')?.value) || 120;
   if (studioState.metronomeEnabled && studioState.isPlaying) {
     stopMetronome();
@@ -1465,6 +1504,14 @@ function closeStudio() {
   studioState.isOpen = false;
   document.querySelector('.studio-selector').style.display = 'block';
   document.getElementById('multiTrackStudio').style.display = 'none';
+  
+  // Re-enable BPM input
+  const bpmInput = document.getElementById('metronomeBPM');
+  if (bpmInput) {
+    bpmInput.disabled = false;
+    bpmInput.value = 120;
+  }
+  
   initStudioTracks();
 }
 
@@ -1485,6 +1532,7 @@ async function viewBeat(beatId) {
         <div class="beat-detail-header">
           <div class="beat-detail-title-section">
             <h3 class="beat-detail-title">${escapeHtml(beat.title)}</h3>
+            <span class="beat-bpm" style="font-size: 14px; margin-left: 0;">${beat.bpm} BPM</span>
             ${isFork ? '<span class="fork-badge-large">🍴 Forked Version</span>' : ''}
           </div>
           <div class="beat-detail-producer">
@@ -1694,7 +1742,7 @@ async function viewProfile(username) {
       <div class="beats-grid">
         ${user.uploadedBeats?.map(b => `
           <div class="beat-card" onclick="viewBeat('${b.id}')">
-            <div class="beat-title">${escapeHtml(b.title)}</div>
+            <div class="beat-title">${escapeHtml(b.title)} <span class="beat-bpm">${b.bpm} BPM</span></div>
             <audio controls onclick="event.stopPropagation()">
               <source src="${CONFIG.API_URL}${b.fileUrl}">
             </audio>
@@ -1706,7 +1754,7 @@ async function viewProfile(username) {
       <div class="beats-grid">
         ${user.forkedMixes?.map(f => `
           <div class="beat-card" onclick="viewBeat('${f.id}')">
-            <div class="beat-title">${escapeHtml(f.title)} <span class="fork-badge">🍴</span></div>
+            <div class="beat-title">${escapeHtml(f.title)} <span class="fork-badge">🍴</span> <span class="beat-bpm">${f.bpm} BPM</span></div>
             <audio controls onclick="event.stopPropagation()">
               <source src="${CONFIG.API_URL}${f.fileUrl}">
             </audio>
@@ -1820,7 +1868,7 @@ async function performSearch() {
             <div class="search-result-avatar">🎵</div>
             <div>
               <div><strong>${escapeHtml(r.title)}</strong></div>
-              <div style="font-size:12px;">by ${escapeHtml(r.producerName)}</div>
+              <div style="font-size:12px;">by ${escapeHtml(r.producerName)} • ${r.bpm} BPM</div>
             </div>
           </div>
         `;
