@@ -570,18 +570,7 @@ async function deleteBeat(beatId) {
   
   showProgress('Deleting...');
   try {
-    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
-    const response = await fetch(`${CONFIG.API_URL}/api/beats/${beatId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Delete failed');
-    
+    const result = await api.request(`/api/beats/${beatId}`, { method: 'DELETE' });
     hideProgress();
     showToast('✅ Deleted successfully!', 'success');
     
@@ -604,18 +593,7 @@ async function deleteRecording(recordingId) {
   
   showProgress('Deleting recording...');
   try {
-    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
-    const response = await fetch(`${CONFIG.API_URL}/api/recordings/${recordingId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Delete failed');
-    
+    const result = await api.request(`/api/recordings/${recordingId}`, { method: 'DELETE' });
     hideProgress();
     showToast('✅ Recording deleted successfully!', 'success');
     

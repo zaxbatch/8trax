@@ -228,7 +228,9 @@ app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
     let votes = readData('votes.json');
     
     const beatIndex = beats.findIndex(b => b.id === req.params.beatId);
-    if (beatIndex === -1) return res.status(404).json({ error: 'Beat not found' });
+    if (beatIndex === -1) {
+      return res.status(404).json({ error: 'Beat not found' });
+    }
     
     const beat = beats[beatIndex];
     
@@ -260,13 +262,13 @@ app.delete('/api/beats/:beatId', authenticate, async (req, res) => {
     
     // Remove beat from user's uploadedBeats
     const owner = users.find(u => u.id === beat.producerId);
-    if (owner && owner.uploadedBeats) {
-      owner.uploadedBeats = owner.uploadedBeats.filter(id => id !== beat.id);
-    }
-    
-    // Remove from forkedMixes if applicable
-    if (beat.isForkedMix && owner && owner.forkedMixes) {
-      owner.forkedMixes = owner.forkedMixes.filter(id => id !== beat.id);
+    if (owner) {
+      if (owner.uploadedBeats) {
+        owner.uploadedBeats = owner.uploadedBeats.filter(id => id !== beat.id);
+      }
+      if (owner.forkedMixes && beat.isForkedMix) {
+        owner.forkedMixes = owner.forkedMixes.filter(id => id !== beat.id);
+      }
     }
     
     // Delete associated comments
@@ -300,16 +302,18 @@ app.delete('/api/recordings/:recordingId', authenticate, async (req, res) => {
     let foundBeat = null;
     let versionIndex = -1;
     
-    for (const beat of beats) {
-      const idx = beat.versions.findIndex(v => v.id === req.params.recordingId);
+    for (let i = 0; i < beats.length; i++) {
+      const idx = beats[i].versions.findIndex(v => v.id === req.params.recordingId);
       if (idx !== -1) {
-        foundBeat = beat;
+        foundBeat = beats[i];
         versionIndex = idx;
         break;
       }
     }
     
-    if (!foundBeat) return res.status(404).json({ error: 'Recording not found' });
+    if (!foundBeat) {
+      return res.status(404).json({ error: 'Recording not found' });
+    }
     
     const recording = foundBeat.versions[versionIndex];
     
@@ -477,7 +481,7 @@ app.post('/api/mix/fork', authenticate, upload.single('fork'), async (req, res) 
     
     if (!user.forkedMixes) user.forkedMixes = [];
     user.forkedMixes.push(forkedMix.id);
-    // Don't add to uploadedBeats - forks are separate
+    // Important: Do NOT add to uploadedBeats - forks are separate
     writeData('users.json', users);
     
     res.json(forkedMix);
